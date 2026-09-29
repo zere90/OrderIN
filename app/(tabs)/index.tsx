@@ -1,127 +1,158 @@
+import { Screen } from "../../src/components/Screen";
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { View, ScrollView } from "react-native";
 import { router } from "expo-router";
-import { useStore } from "../../src/store";
-import { customers } from "../../src/data/mock";
-import { ru, time } from "../../src/i18n/ru";
-import {
-  Card,
-  ChannelBadge,
-  Chip,
-  EmptyState,
-  Label,
-  Row,
-  Screen,
-} from "../../src/components/ui";
+import { LinearGradient } from "expo-linear-gradient";
+import { useBusiness } from "../../src/store";
 import { useTheme } from "../../src/theme";
-export default function Inbox() {
-  const c = useTheme();
-  const { chats, messages, orders } = useStore();
+import { v2 as ru, time } from "../../src/i18n/ru";
+import {
+  Row,
+  Label,
+  Chip,
+  SpringPress,
+  EmptyState,
+} from "../../src/components/ui";
+import { Icon } from "../../src/components/Icon";
+export default function Chats() {
+  const b = useBusiness();
+  const t = useTheme();
   const [filter, setFilter] = useState("all");
-  const list = chats
+  const list = b.chats
     .filter(
-      (chat) =>
+      (c) =>
         filter === "all" ||
-        filter === chat.channel ||
+        filter === c.channel ||
         (filter === "orders" &&
-          orders.some((o) => o.chatId === chat.id && o.status === "draft")),
+          b.orders.some((o) => o.chatId === c.id && o.status === "draft")) ||
+        (filter === "questions" &&
+          b.messages.some(
+            (m) => m.chatId === c.id && m.analysis?.type === "question",
+          )),
     )
-    .sort((a, b) =>
+    .sort((a, z) =>
       (
-        messages.filter((m) => m.chatId === b.id).at(-1)?.createdAt || ""
+        b.messages.filter((m) => m.chatId === z.id).at(-1)?.createdAt || ""
       ).localeCompare(
-        messages.filter((m) => m.chatId === a.id).at(-1)?.createdAt || "",
+        b.messages.filter((m) => m.chatId === a.id).at(-1)?.createdAt || "",
       ),
     );
   return (
-    <Screen>
-      <Label size={12} muted>
-        {ru.bakery}
-      </Label>
-      <Label size={28} bold>
-        {ru.inboxTitle}
-      </Label>
-      <Label muted>{ru.inboxSubtitle}</Label>
-      <Row>
-        {(["all", "instagram", "whatsapp", "orders"] as const).map((f) => (
-          <Chip
-            key={f}
-            title={ru[f]}
-            active={filter === f}
-            onPress={() => setFilter(f)}
-          />
-        ))}
-      </Row>
-      {list.map((chat) => {
-        const customer = customers.find((c) => c.id === chat.customerId)!;
-        const last = messages.filter((m) => m.chatId === chat.id).at(-1);
-        const detected = orders.some(
-          (o) => o.chatId === chat.id && o.status === "draft",
-        );
-        return (
-          <Pressable
-            key={chat.id}
-            accessibilityRole="button"
-            accessibilityLabel={customer.name}
-            onPress={() =>
-              router.push({ pathname: "/chat/[id]", params: { id: chat.id } })
-            }
-          >
-            <Card>
-              <Row>
-                <View
+    <Screen title={`${ru.inbox} · ${b.name}`} subtitle="Instagram + WhatsApp">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8 }}
+      >
+        {(["all", "instagram", "whatsapp", "orders", "questions"] as const).map(
+          (f) => (
+            <Chip
+              key={f}
+              title={ru[f]}
+              active={filter === f}
+              onPress={() => setFilter(f)}
+            />
+          ),
+        )}
+      </ScrollView>
+      <View>
+        {list.map((chat) => {
+          const customer = b.customers.find((c) => c.id === chat.customerId)!;
+          const last = b.messages.filter((m) => m.chatId === chat.id).at(-1);
+          const order = b.orders.some(
+            (o) => o.chatId === chat.id && o.status === "draft",
+          );
+          return (
+            <SpringPress
+              key={chat.id}
+              label={customer.name}
+              onPress={() =>
+                router.push({
+                  pathname: "/chat/[id]",
+                  params: { id: chat.id, businessId: b.id },
+                })
+              }
+            >
+              <Row
+                style={{
+                  paddingVertical: 14,
+                  gap: 12,
+                  borderBottomWidth: 1,
+                  borderColor: t.border,
+                  backgroundColor: chat.unread ? t.tint : t.transparent,
+                }}
+              >
+                <LinearGradient
+                  colors={t.thumbGradient}
                   style={{
-                    width: 46,
-                    height: 46,
-                    borderRadius: 16,
-                    backgroundColor: c.tint,
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                 >
-                  <Label bold>{customer.initials}</Label>
-                </View>
-                <View style={{ flex: 1, gap: 3 }}>
-                  <Label bold>{customer.name}</Label>
-                  <ChannelBadge channel={chat.channel} />
-                </View>
-                <Label size={11} muted>
-                  {last ? time(last.createdAt) : ""}
-                </Label>
-                {chat.unread && (
+                  <Label display size={12} color={t.accent}>
+                    {customer.initials}
+                  </Label>
                   <View
                     style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: 4,
-                      backgroundColor: c.gold,
+                      position: "absolute",
+                      bottom: -2,
+                      right: -2,
+                      width: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      backgroundColor: t[chat.channel],
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderWidth: 2,
+                      borderColor: t.card,
                     }}
-                  />
-                )}
-              </Row>
-              <Label muted>{last?.text}</Label>
-              {detected && (
-                <View
-                  style={{
-                    backgroundColor: c.tint,
-                    borderRadius: 8,
-                    padding: 8,
-                    alignSelf: "flex-start",
-                  }}
-                >
-                  <Label size={11} bold>
-                    ✦ {ru.detected}
-                  </Label>
+                  >
+                    <Icon name={chat.channel} size={9} color={t.white} />
+                  </View>
+                </LinearGradient>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Row>
+                    <Label bold style={{ flex: 1 }}>
+                      {customer.name}
+                    </Label>
+                    <Label muted size={11}>
+                      {last ? time(last.createdAt) : ""}
+                    </Label>
+                  </Row>
+                  <Row>
+                    <Label muted size={13} lines={1} style={{ flex: 1 }}>
+                      {last?.text}
+                    </Label>
+                    {order && (
+                      <Label size={10} bold color={t.accent}>
+                        {ru.order}
+                      </Label>
+                    )}
+                    {chat.unread > 0 && (
+                      <View
+                        style={{
+                          backgroundColor: t.primary,
+                          borderRadius: 9,
+                          minWidth: 18,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Label color={t.white} size={10}>
+                          {chat.unread}
+                        </Label>
+                      </View>
+                    )}
+                  </Row>
                 </View>
-              )}
-            </Card>
-          </Pressable>
-        );
-      })}
+              </Row>
+            </SpringPress>
+          );
+        })}
+      </View>
       {!list.length && <EmptyState />}
-      <Label size={10} muted>
-        {ru.demo}
-      </Label>
     </Screen>
   );
 }

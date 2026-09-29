@@ -1,13 +1,18 @@
 # Qazyna project rules
 
-- Preserve the Expo SDK installed by create-expo-app (currently SDK 57). Keep the app runnable in Expo Go with `npx expo start`.
-- Install dependencies with `npx expo install <package>` so native versions match the SDK. Never use `npm install <package>` to add dependencies. `npm install` is permitted for restoring the lockfile.
-- No prebuild, custom native modules or dev-client-only libraries. Prefer expo-router, Zustand, AsyncStorage, @expo/vector-icons, expo-clipboard, expo-haptics and react-native-safe-area-context; justify any other new library. Starter dependencies may remain.
-- Keep TypeScript strict. Routes live in `app/`; reusable UI, data, services, state, theme and types live under the corresponding `src/` folders.
-- Put integrations behind typed `AiService`, `PaymentService` and `MessagingService` interfaces. This prototype uses mocks only: no real payments, external messages or API credentials.
-- Put Russian UI strings in `src/i18n/ru.ts`; mock customer messages may mix Kazakh, Russian and English. Format money as `12 500 ₸` and dates for Russian readers.
-- Maintain light/dark themes, deep teal #0F766E, gold #F5B301, rounded 16-point cards and mobile-friendly touch targets.
-- Preserve order lifecycle: draft → awaiting_payment → paid → completed, with cancellation before payment. Validate positive integer quantities, known products, dates and sufficient stock. Decrement stock exactly once on payment; never allow negative stock.
-- Persist demo state with Zustand / AsyncStorage. Avoid accessing native or browser storage during server rendering. Keep reset repeatable and protect async mutations from reset races.
-- Run `npm test`, `npx tsc --noEmit`, `npx expo install --check` and `npx expo-doctor` after relevant changes. Start Expo and verify affected flows; report device-only checks honestly.
-- Keep README instructions and service contracts current. Do not add secrets, generated native directories, node_modules or build exports to Git.
+- Stay on Expo SDK 57 and preserve Expo Go compatibility. Install dependencies only with `npx expo install <package>`. SDK 57 patch alignment is allowed when Expo's compatibility checker requires it; no SDK-major upgrades, prebuild, custom native modules or dev-client-only libraries.
+- Allowed additions: expo-font, @expo-google-fonts/unbounded, @expo-google-fonts/manrope, expo-linear-gradient, react-native-svg, expo-blur, expo-haptics, expo-image-picker, expo-document-picker, xlsx, @expo/vector-icons. Existing router, Zustand, AsyncStorage, clipboard, safe-area and starter dependencies remain. Do not add Vite/Tailwind/react-dom for design reference code.
+- `design/figma-make/` is reference only. Do not run, install, build or import it. It is excluded from app TypeScript checks.
+- Strict TypeScript. Routes in `app/`; reusable components, business catalogs, services, store, theme and types under `src/`.
+- All screen/component colors come from `useTheme()`. Exact six skin constants live in `src/theme/skins.ts`; shared neutral/semantic colors and dimensions in `tokens.ts`. Dark mode uses near-black backgrounds and each skin's second color for accent text/icons. No literal color values in screens.
+- Icons go through `src/components/Icon.tsx` using design Material Symbols names. Unbounded is for display headings/numbers; Manrope for body text. Keep the splash until fonts and persisted state load.
+- Use shared Screen/Header/Card/AICard/Button/BottomSheet/Toast components. New AI cards use `OpportunityCard`. Preserve spring press feedback, native safe areas and a responsive full-window layout.
+- Keep Russian UI strings/templates in `src/i18n/ru.ts`. Mock customer content may mix ru/kk/en. Format money as `12 500 ₸` and dates in Russian.
+- Every business owns its customers/chats/messages/orders/products/history/opportunity state. Capture business IDs for asynchronous work; never apply a response to whichever business happens to be selected later.
+- Integrations stay behind typed AI, Payment, Messaging, Opportunity and Import service interfaces. All external actions are mocks; no actual payments, outreach, SMS or API credentials.
+- Compute opportunities and their numbers from business data. Persist hides/undo, created products, shopping checklists and all local outreach.
+- Order lifecycle: draft → awaiting_payment → paid → completed; cancellation before payment. Validate finite nonnegative totals, positive integer quantities, dates, variants, and stock. Deduct stock and component requirements once. Preorders collect deposits without reducing unavailable stock.
+- Preserve inventory-history sources. Excel values replace absolute stock counts; photo/manual imports add quantities. Match variants using name + size + color; reject invalid/duplicate rows and stale previews before atomic application. Keep the sample workbook and bundled copy byte-identical.
+- Persist with Zustand/AsyncStorage; do not read browser/native storage during SSR. Preserve `qazyna-demo-v1` when updating v2. Reset must invalidate pending async writes.
+- Run `npm test`, `npx tsc --noEmit`, `npx expo install --check`, `npx expo-doctor`; bundle affected native/web platforms and inspect relevant browser flows. Report physical-device-only checks honestly.
+- Keep README and PR validation/design-difference notes current. Do not commit secrets, node_modules, build exports, native generated directories or local user state.
