@@ -8,6 +8,7 @@
     "@expo/ui": "~57.0.21",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "^2.109.0",
     "expo": "~57.0.26",
     "expo-blur": "~57.0.3",
     "expo-clipboard": "~57.0.2",
@@ -18,6 +19,7 @@
     "expo-glass-effect": "~57.0.4",
     "expo-haptics": "~57.0.3",
     "expo-image": "~57.0.5",
+    "expo-image-manipulator": "~57.0.20",
     "expo-image-picker": "~57.0.20",
     "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.11",
@@ -49,8 +51,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "node tests/domain.cjs",
-    "typecheck": "tsc --noEmit"
+    "test": "node tests/domain.cjs && node tests/ai.cjs",
+    "typecheck": "tsc --noEmit",
+    "test:edge": "npx --yes deno test --config supabase/functions/ai/deno.json supabase/functions/ai/handler_test.ts"
   },
   "private": true
 }

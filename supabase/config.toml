@@ -1,0 +1,8 @@
+project_id = "qazyna"
+
+[auth]
+enable_anonymous_sign_ins = true
+
+[functions.ai]
+# Handler verifies the user with Auth; supports modern signing keys as well.
+verify_jwt = false

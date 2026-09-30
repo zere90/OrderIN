@@ -1,19 +1,22 @@
+import { AiStatus } from "../../src/components/AiStatus";
+import { aiService } from "../../src/services/ai";
+import { aiRu } from "../../src/i18n/ru";
 import { Screen } from "../../src/components/Screen";
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as Linking from "expo-linking";
 import { LinearGradient } from "expo-linear-gradient";
-import { useStore } from "../../src/store";
+import { getResetGeneration, useStore } from "../../src/store";
 import { useTheme } from "../../src/theme";
-import { v2 as ru, time } from "../../src/i18n/ru";
+import { time, v2 as ru } from "../../src/i18n/ru";
 import {
-  Label,
-  Row,
-  Field,
   Button,
   Chip,
   EmptyState,
+  Field,
+  Label,
+  Row,
 } from "../../src/components/ui";
 import { OrderCard } from "../../src/components/OrderCard";
 import { useToast } from "../../src/components/Toast";
@@ -27,18 +30,40 @@ export default function Chat() {
   const customer = b?.customers.find((c) => c.id === chat?.customerId);
   const t = useTheme();
   const toast = useToast();
+  const scope = useRef(`${b.id}:${id}`);
+  scope.current = `${b.id}:${id}`;
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [replyBusy, setReplyBusy] = useState(false);
+  async function draftReplies() {
+    setReplyBusy(true);
+    const requestScope = scope.current;
+    const revision = getResetGeneration();
+    try {
+      const result = await aiService.draftReply(
+        b.messages.filter((m) => m.chatId === id),
+        b.type,
+        b.name,
+      );
+      if (requestScope === scope.current && revision === getResetGeneration()) {
+        setSuggestions(result.replies);
+      }
+    } finally {
+      setReplyBusy(false);
+    }
+  }
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [analyzing, setAnalyzing] = useState<string>();
   useEffect(() => {
     if (b) useStore.getState().read(b.id, id);
   }, [b?.id, id]);
-  if (!chat)
+  if (!chat) {
     return (
       <Screen back>
         <EmptyState />
       </Screen>
     );
+  }
   async function send(text: string) {
     setBusy(true);
     try {
@@ -52,7 +77,22 @@ export default function Chat() {
   }
   const footer = (
     <View style={{ gap: 8 }}>
+      <AiStatus retry={() => void draftReplies()} />
+      <Button
+        small
+        secondary
+        title={replyBusy ? aiRu.thinking : aiRu.replies}
+        disabled={replyBusy}
+        onPress={() => void draftReplies()}
+      />
       <Row style={{ flexWrap: "wrap" }}>
+        {suggestions.map((reply) => (
+          <Chip
+            key={reply}
+            title={reply}
+            onPress={() => setInput(reply)}
+          />
+        ))}
         {ru.replies.map((label, i) => (
           <Chip
             key={label}
@@ -116,49 +156,60 @@ export default function Chat() {
                   maxWidth: "82%",
                 }}
               >
-                {owner ? (
-                  <LinearGradient
-                    colors={t.gradient}
-                    style={{
-                      padding: 14,
-                      borderRadius: 18,
-                      borderBottomRightRadius: 4,
-                    }}
-                  >
-                    {message.role === "bot" && (
-                      <Label size={10} color={t.white}>
-                        ✦ Qazyna AI
-                      </Label>
-                    )}
-                    {bubble}
-                  </LinearGradient>
-                ) : (
-                  <View
-                    style={{
-                      padding: 14,
-                      borderRadius: 18,
-                      borderBottomLeftRadius: 4,
-                      backgroundColor: t.card,
-                      ...t.shadow,
-                    }}
-                  >
-                    {bubble}
-                  </View>
-                )}
+                {owner
+                  ? (
+                    <LinearGradient
+                      colors={t.gradient}
+                      style={{
+                        padding: 14,
+                        borderRadius: 18,
+                        borderBottomRightRadius: 4,
+                      }}
+                    >
+                      {message.role === "bot" && (
+                        <Label size={10} color={t.white}>
+                          ✦ Qazyna AI
+                        </Label>
+                      )}
+                      {bubble}
+                    </LinearGradient>
+                  )
+                  : (
+                    <View
+                      style={{
+                        padding: 14,
+                        borderRadius: 18,
+                        borderBottomLeftRadius: 4,
+                        backgroundColor: t.card,
+                        ...t.shadow,
+                      }}
+                    >
+                      {bubble}
+                    </View>
+                  )}
               </View>
+              {message.analysis && message.analysis.confidence < 0.7 && (
+                <Label color={t.warningText}>
+                  {aiRu.review}: {message.analysis.missing?.join(", ")}
+                </Label>
+              )}
               {order && <OrderCard order={order} businessId={b.id} editable />}
               {message.role === "customer" && !order && (
                 <>
                   <Label size={10} muted>
                     {message.analysis?.type === "question"
                       ? ru.question
-                      : ru.feedback}
+                      : message.analysis?.type === "feedback" ? ru.feedback : aiRu.other}
                   </Label>
                   <Button
                     small
                     secondary
-                    title={analyzing === message.id ? ru.analyzing : ru.analyze}
-                    disabled={!!analyzing}
+                    title={analyzing === message.id
+                      ? aiRu.thinking
+                      : message.analysis?.aiCached
+                      ? aiRu.cached
+                      : ru.analyze}
+                    disabled={!!analyzing || !!message.analysis?.aiCached}
                     onPress={() => {
                       setAnalyzing(message.id);
                       void useStore
@@ -181,9 +232,12 @@ export default function Chat() {
             secondary
             onPress={() =>
               void send(
-                `${ru.tryonLink}\n${Linking.createURL(`/tryon/${b.products[0].id}`, { queryParams: { businessId: b.id, chatId: id } })}`,
-              )
-            }
+                `${ru.tryonLink}\n${
+                  Linking.createURL(`/tryon/${b.products[0].id}`, {
+                    queryParams: { businessId: b.id, chatId: id },
+                  })
+                }`,
+              )}
           />
           <Button
             title={ru.tryon}
@@ -196,8 +250,7 @@ export default function Chat() {
                   businessId: b.id,
                   chatId: id,
                 },
-              })
-            }
+              })}
           />
         </>
       )}

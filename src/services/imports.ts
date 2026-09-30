@@ -1,3 +1,4 @@
+import { aiService, useAiStatus } from "./supabaseAi";
 import * as XLSX from "xlsx";
 import { ImportRow, Product } from "../types";
 import { v2 as ru } from "../i18n/ru";
@@ -12,7 +13,7 @@ export interface ImportService {
   parse(data: ArrayBuffer | string, type?: "array" | "base64"): WorkbookTable;
   guess(headers: string[]): ColumnMapping;
   map(table: WorkbookTable, mapping: ColumnMapping): ImportRow[];
-  recognize(products: Product[]): Promise<ImportRow[]>;
+  recognize(products: Product[], image?: string): Promise<ImportRow[]>;
 }
 const aliases: Record<ColumnField, string[]> = {
   name: [
@@ -50,7 +51,11 @@ const numeric = (v: unknown) =>
 export const importService: ImportService = {
   parse(data, type = "array") {
     try {
-      const book = XLSX.read(data, { type, dense: true, codepage: 65001 });
+      const bytes = type === "array" && typeof data !== "string" ? new Uint8Array(data) : undefined;
+      const isBinary = bytes && ((bytes[0] === 0x50 && bytes[1] === 0x4b) || (bytes[0] === 0xd0 && bytes[1] === 0xcf));
+      const book = bytes && !isBinary
+        ? XLSX.read(new TextDecoder("utf-8").decode(bytes), {type:"string", dense:true})
+        : XLSX.read(data, { type, dense: true });
       const sheet = book.Sheets[book.SheetNames[0]];
       const raw = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
         header: 1,
@@ -96,7 +101,12 @@ export const importService: ImportService = {
     validateImport(rows, "replace");
     return rows;
   },
-  async recognize(products) {
+  async recognize(products, image) {
+    if (image) {
+      const result = await aiService.readInvoice(image, products, () => importService.recognize(products));
+      return result.rows.map(row => ({...row, size: row.variant?.size ?? row.size, color: row.variant?.color ?? row.color}));
+    }
+    useAiStatus.setState({demo:true});
     await new Promise((r) => setTimeout(r, 1500));
     return products.slice(0, 4).map((p, i) => ({
       productId: p.id,

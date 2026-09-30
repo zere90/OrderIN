@@ -3,18 +3,18 @@ import { View } from "react-native";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import { Order } from "../types";
-import { useStore, totalOf, validateOrder } from "../store";
-import { money, readableDate, v2 as ru } from "../i18n/ru";
+import { totalOf, useStore, validateOrder } from "../store";
+import { aiRu, money, readableDate, v2 as ru } from "../i18n/ru";
 import { useTheme } from "../theme";
 import {
   AICard,
   AILabel,
-  Row,
-  Label,
   Button,
-  Field,
-  StatusPill,
   Chip,
+  Field,
+  Label,
+  Row,
+  StatusPill,
 } from "./ui";
 import { useToast } from "./Toast";
 export function OrderCard({
@@ -30,6 +30,8 @@ export function OrderCard({
   const t = useTheme();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const analysis = b.messages.find((m) => m.id === order.messageId)?.analysis;
+  const lowConfidence = !!analysis && analysis.confidence < 0.7;
   const canEdit = editable && order.status === "draft";
   let warning = "";
   try {
@@ -49,10 +51,11 @@ export function OrderCard({
     try {
       await action();
       toast(message);
-      if (payment)
+      if (payment) {
         void Haptics.notificationAsync(
           Haptics.NotificationFeedbackType.Success,
         ).catch(() => {});
+      }
     } catch (e) {
       toast(e instanceof Error ? e.message : ru.error);
     } finally {
@@ -68,13 +71,21 @@ export function OrderCard({
         </Label>
         <StatusPill status={order.status} />
       </Row>
+      {analysis?.demo && (
+        <Label color={t.warningText} size={10}>{aiRu.demo}</Label>
+      )}
+      {lowConfidence && (
+        <Label color={t.warningText}>
+          {aiRu.review}: {analysis?.missing?.join(", ")}
+        </Label>
+      )}
       {order.items.map((it, i) => {
         const p = b.products.find((p) => p.id === it.productId);
         return (
           <View key={`${it.productId}-${i}`} style={{ gap: 8 }}>
             <Row>
-              <Label bold size={13} style={{ flex: 1 }}>
-                {p?.name} {p?.size}
+              <Label bold size={13} color={lowConfidence ? t.warningText : t.text} style={{ flex: 1 }}>
+                {p?.name} {p?.size} {lowConfidence ? ` · ${aiRu.review}` : ""}
               </Label>
               <Label muted size={12}>
                 ×{it.qty}
@@ -93,10 +104,9 @@ export function OrderCard({
                   onPress={() =>
                     edit({
                       items: order.items.map((x, j) =>
-                        j === i ? { ...x, qty: x.qty - 1 } : x,
+                        j === i ? { ...x, qty: x.qty - 1 } : x
                       ),
-                    })
-                  }
+                    })}
                 />
                 <Field
                   accessibilityLabel={`${ru.qty}: ${p?.name}`}
@@ -109,10 +119,9 @@ export function OrderCard({
                       items: order.items.map((x, j) =>
                         j === i
                           ? { ...x, qty: Number(text.replace(/\D/g, "")) }
-                          : x,
+                          : x
                       ),
-                    })
-                  }
+                    })}
                 />
                 <Button
                   title="+"
@@ -122,10 +131,9 @@ export function OrderCard({
                   onPress={() =>
                     edit({
                       items: order.items.map((x, j) =>
-                        j === i ? { ...x, qty: x.qty + 1 } : x,
+                        j === i ? { ...x, qty: x.qty + 1 } : x
                       ),
-                    })
-                  }
+                    })}
                 />
                 <Button
                   title={ru.remove}
@@ -133,8 +141,7 @@ export function OrderCard({
                   secondary
                   disabled={busy}
                   onPress={() =>
-                    edit({ items: order.items.filter((_, j) => j !== i) })
-                  }
+                    edit({ items: order.items.filter((_, j) => j !== i) })}
                 />
               </Row>
             )}
@@ -160,13 +167,12 @@ export function OrderCard({
                   onPress={() =>
                     edit({
                       items: [...order.items, { productId: p.id, qty: 1 }],
-                    })
-                  }
+                    })}
                 />
               ))}
           </Row>
-          <Label muted size={11}>
-            {ru.date}
+          <Label size={11} color={lowConfidence ? t.warningText : t.muted}>
+            {ru.date} {lowConfidence ? ` · ${aiRu.review}` : ""}
           </Label>
           <Field
             value={order.date || ""}
@@ -174,8 +180,8 @@ export function OrderCard({
             accessibilityLabel={ru.date}
             onChangeText={(date) => edit({ date })}
           />
-          <Label muted size={11}>
-            {ru.address}
+          <Label size={11} color={lowConfidence ? t.warningText : t.muted}>
+            {ru.address} {lowConfidence ? ` · ${aiRu.review}` : ""}
           </Label>
           <Field
             value={order.address || ""}
@@ -199,21 +205,22 @@ export function OrderCard({
         style={{ borderTopWidth: 1.5, borderColor: t.border, paddingTop: 12 }}
       >
         <Label style={{ flex: 1 }}>{ru.total}</Label>
-        {canEdit ? (
-          <Field
-            accessibilityLabel={ru.total}
-            keyboardType="decimal-pad"
-            value={String(totalOf(order, b.products))}
-            onChangeText={(text) =>
-              edit({ total: Number(text.replace(",", ".")) })
-            }
-            style={{ width: 130 }}
-          />
-        ) : (
-          <Label display size={18} color={t.accent}>
-            {money(totalOf(order, b.products))}
-          </Label>
-        )}
+        {canEdit
+          ? (
+            <Field
+              accessibilityLabel={ru.total}
+              keyboardType="decimal-pad"
+              value={String(totalOf(order, b.products))}
+              onChangeText={(text) =>
+                edit({ total: Number(text.replace(",", ".")) })}
+              style={{ width: 130 }}
+            />
+          )
+          : (
+            <Label display size={18} color={t.accent}>
+              {money(totalOf(order, b.products))}
+            </Label>
+          )}
       </Row>
       {order.deposit && (
         <Label size={12} color={t.accent}>
@@ -233,8 +240,7 @@ export function OrderCard({
             void run(
               () => useStore.getState().confirm(b.id, order.id),
               ru.linkSent,
-            )
-          }
+            )}
         />
       )}
       {order.status === "awaiting_payment" && (
@@ -247,8 +253,7 @@ export function OrderCard({
                 () => useStore.getState().pay(b.id, order.id),
                 ru.paymentSuccess,
                 true,
-              )
-            }
+              )}
           />
           <Button
             secondary
@@ -256,8 +261,7 @@ export function OrderCard({
             onPress={() =>
               void run(async () => {
                 await Clipboard.setStringAsync(order.paymentUrl || "");
-              }, ru.copied)
-            }
+              }, ru.copied)}
           />
         </>
       )}

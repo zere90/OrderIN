@@ -31,7 +31,12 @@ export interface Product {
   deposit?: number;
 }
 export interface Analysis {
-  type: "order" | "question" | "feedback";
+  type: "order" | "question" | "feedback" | "other";
+  language?: "kk" | "ru" | "en" | "mixed";
+  missing?: string[];
+  time?: string;
+  demo?: boolean;
+  aiCached?: boolean;
   items: OrderItem[];
   date?: string;
   address?: string;
