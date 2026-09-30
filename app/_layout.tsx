@@ -42,6 +42,7 @@ function AppStack() {
         <Stack.Screen name="order/[id]" />
         <Stack.Screen name="tryon/[productId]" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="oauth/meta" />
         <Stack.Screen name="skins" />
         <Stack.Screen name="import" />
         <Stack.Screen name="shopping/[id]" />

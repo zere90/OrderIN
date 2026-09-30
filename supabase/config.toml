@@ -6,3 +6,14 @@ enable_anonymous_sign_ins = true
 [functions.ai]
 # Handler verifies the user with Auth; supports modern signing keys as well.
 verify_jwt = false
+
+[functions.meta-webhook]
+verify_jwt = false
+[functions.send-message]
+verify_jwt = false
+[functions.connect-instagram]
+verify_jwt = false
+[functions.connect-whatsapp]
+verify_jwt = false
+[functions.meta-maintenance]
+verify_jwt = false

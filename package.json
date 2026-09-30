@@ -51,9 +51,10 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "node tests/domain.cjs && node tests/ai.cjs",
+    "test": "node tests/domain.cjs && node tests/ai.cjs && node tests/meta.cjs",
     "typecheck": "tsc --noEmit",
-    "test:edge": "npx --yes deno test --config supabase/functions/ai/deno.json supabase/functions/ai/handler_test.ts"
+    "test:edge": "npx --yes deno test --config supabase/functions/ai/deno.json supabase/functions/ai/handler_test.ts",
+    "test:meta": "npx --yes deno test --config supabase/functions/deno.json supabase/functions/meta-webhook/handler_test.ts"
   },
   "private": true
 }

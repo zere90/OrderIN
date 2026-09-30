@@ -1,3 +1,5 @@
+import { aiConfigured } from "./supabase";
+import { remoteMessagingService } from "./remoteMessaging";
 import { Business, Chat, Message } from "../types";
 export interface MessagingService {
   getChats(business: Business): Promise<Chat[]>;
@@ -7,7 +9,7 @@ export interface MessagingService {
     role?: Message["role"],
   ): Promise<Message>;
 }
-export const messagingService: MessagingService = {
+export const mockMessagingService: MessagingService = {
   async getChats(business) {
     return business.chats;
   },
@@ -21,3 +23,5 @@ export const messagingService: MessagingService = {
     };
   },
 };
+
+export const messagingService: MessagingService = aiConfigured ? remoteMessagingService : mockMessagingService;
