@@ -1,20 +1,23 @@
-import { useState } from "react";
+import { aiService } from "../services/ai";
+import { AiStatus } from "./AiStatus";
+import { aiRu } from "../i18n/ru";
+import { useRef, useState } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
 import { Opportunity } from "../types";
-import { useBusiness, useStore } from "../store";
+import { getResetGeneration, useBusiness, useStore } from "../store";
 import { useTheme } from "../theme";
 import { v2 as ru } from "../i18n/ru";
 import {
   AICard,
   AILabel,
-  Label,
-  Row,
-  Button,
   BottomSheet,
-  Field,
+  Button,
   Chip,
+  Field,
+  Label,
   ProductThumb,
+  Row,
 } from "./ui";
 import { useToast } from "./Toast";
 export function OpportunityCard({
@@ -27,10 +30,35 @@ export function OpportunityCard({
   const b = useBusiness();
   const t = useTheme();
   const toast = useToast();
+  const scope = useRef(`${b.id}:${op.id}`);
+  scope.current = `${b.id}:${op.id}`;
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(op.draft);
   const [selected, setSelected] = useState(op.recipientIds);
   const [busy, setBusy] = useState(false);
+  async function writeCampaign() {
+    setBusy(true);
+    const requestScope = scope.current;
+    const revision = getResetGeneration();
+    const customer = b.customers.find((c) =>
+      c.id === b.chats.find((c) => c.id === selected[0])?.customerId
+    );
+    const latest = b.messages.filter((m) =>
+      m.chatId === selected[0] && m.role === "customer"
+    ).at(-1);
+    try {
+      const result = await aiService.writeCampaign(
+        op,
+        selected.length === 1 ? customer?.name || b.name : b.name,
+        latest?.analysis?.language || "ru",
+      );
+      if (requestScope === scope.current && revision === getResetGeneration()) {
+        setText(result.message);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
   const created = b.createdOpportunities.includes(op.id);
   return (
     <>
@@ -54,56 +82,62 @@ export function OpportunityCard({
             {op.calculation}
           </Label>
         </View>
-        {compact ? (
-          <Button
-            small
-            title={`${op.title} →`}
-            onPress={() => router.push("/ai")}
-          />
-        ) : (
-          <>
+        {compact
+          ? (
             <Button
               small
-              title={ru.sendCustomers}
-              disabled={!op.recipientIds.length}
-              onPress={() => {
-                setText(op.draft);
-                setSelected(op.recipientIds);
-                setOpen(true);
-              }}
+              title={`${op.title} →`}
+              onPress={() => router.push("/ai")}
             />
-            <Row>
-              <View style={{ flex: 1 }}>
+          )
+          : (
+            <>
+              <Button
+                small
+                title={ru.sendCustomers}
+                disabled={!op.recipientIds.length}
+                onPress={() => {
+                  setText(op.draft);
+                  setSelected(op.recipientIds);
+                  setOpen(true);
+                }}
+              />
+              <Row>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    small
+                    secondary
+                    title={created ? ru.createdAlready : ru.create}
+                    disabled={created}
+                    onPress={() => {
+                      const id = useStore.getState().createOpportunity(
+                        b.id,
+                        op,
+                      );
+                      if (id && op.kind === "shopping") {
+                        router.push({
+                          pathname: "/shopping/[id]",
+                          params: { id, businessId: b.id },
+                        });
+                      } else toast(ru.created);
+                    }}
+                  />
+                </View>
                 <Button
                   small
                   secondary
-                  title={created ? ru.createdAlready : ru.create}
-                  disabled={created}
+                  title={ru.hide}
                   onPress={() => {
-                    const id = useStore.getState().createOpportunity(b.id, op);
-                    if (id && op.kind === "shopping")
-                      router.push({
-                        pathname: "/shopping/[id]",
-                        params: { id, businessId: b.id },
-                      });
-                    else toast(ru.created);
+                    useStore.getState().hide(b.id, op.id, true);
+                    toast(
+                      ru.hidden,
+                      () => useStore.getState().hide(b.id, op.id, false),
+                    );
                   }}
                 />
-              </View>
-              <Button
-                small
-                secondary
-                title={ru.hide}
-                onPress={() => {
-                  useStore.getState().hide(b.id, op.id, true);
-                  toast(ru.hidden, () =>
-                    useStore.getState().hide(b.id, op.id, false),
-                  );
-                }}
-              />
-            </Row>
-          </>
-        )}
+              </Row>
+            </>
+          )}
       </AICard>
       <BottomSheet
         visible={open}
@@ -113,6 +147,14 @@ export function OpportunityCard({
         <Label muted size={12}>
           {ru.demo}
         </Label>
+        <AiStatus retry={() => void writeCampaign()} />
+        <Button
+          small
+          secondary
+          title={busy ? aiRu.thinking : aiRu.campaign}
+          disabled={busy}
+          onPress={() => void writeCampaign()}
+        />
         <Field
           multiline
           accessibilityLabel={ru.draftMessage}
@@ -132,9 +174,8 @@ export function OpportunityCard({
               active={selected.includes(id)}
               onPress={() =>
                 setSelected((s) =>
-                  s.includes(id) ? s.filter((x) => x !== id) : [...s, id],
-                )
-              }
+                  s.includes(id) ? s.filter((x) => x !== id) : [...s, id]
+                )}
             />
           );
         })}

@@ -1,3 +1,4 @@
+import { invalidateAi } from "../services/aiScope";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
@@ -75,6 +76,7 @@ interface State {
   createOrder: (bid: string, productId: string, chatId?: string) => string;
 }
 let generation = 0;
+export const getResetGeneration = () => generation;
 const locks = new Set<string>();
 export const stockFingerprint = (b: Business) =>
   JSON.stringify(b.products.map((p) => [p.id, p.stock, p.price]));
@@ -92,6 +94,7 @@ export const useStore = create<State>()(
         hydrated: false,
         reset: () => {
           generation++;
+          invalidateAi();
           set({ ...seed(), onboarded: true });
         },
         setMode: (mode) => set({ mode }),
@@ -261,9 +264,11 @@ export const useStore = create<State>()(
           const revision = generation;
           const b = get().businesses[bid];
           if (!b) return;
-          const analysis = await aiService.analyzeMessage(
+          const previous = b.messages.find(m => m.id === message.id)?.analysis;
+          const analysis = (previous?.aiCached ? previous : undefined) || await aiService.analyzeMessage(
             message.text,
             b.products,
+            { businessId: bid, businessType: b.type, messageId: message.id },
           );
           if (revision !== generation) return;
           update(bid, (b) => ({

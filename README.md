@@ -2,7 +2,7 @@
 
 Qazyna is a Russian-language Expo Go app for micro-sellers in Kazakhstan. It brings Instagram and WhatsApp chats, editable AI orders, mock Kaspi payments, inventory and business-specific AI opportunities into one mobile app.
 
-Everything is local demo data. SMS, channel connections, AI invoice recognition, outreach and payments are mocked. No external message is sent and no money moves. The size recommendation is a deterministic demo, not a measurement guarantee.
+Business records are local demo data. AI can use Gemini or Anthropic through Supabase (setup below), with local fallback. SMS, channel connections, outreach and payments are mocked. No external message is sent and no money moves. The size recommendation is a deterministic demo, not a measurement guarantee.
 
 ## Run
 
@@ -43,7 +43,7 @@ Opportunities are computed from each business's own mock data: co-purchases, siz
 
 ## Inventory imports
 
-- **Photo:** camera or gallery → 1.5-second mock recognition → editable product/quantity/price/confidence rows. Low-confidence rows are highlighted. The demo does not perform OCR on the photo. “Попробовать на примере” exercises the same flow without a camera.
+- **Photo:** camera or gallery → resized image → Supabase AI recognition (or a labelled demo fallback) → editable product/quantity/price/confidence rows. Low-confidence rows are highlighted. Without AI configuration, the demo does not perform OCR on the photo. “Попробовать на примере” exercises the same flow without a camera.
 - **Excel/CSV:** DocumentPicker → SheetJS → editable ru/kk/en header mapping → stock/price differences → explicit application. Excel values are absolute stock counts; invoice/manual additions are increments. Matching uses product name + size + color. Invalid/duplicate rows and stale previews are rejected.
 - [assets/sample-stock.xlsx](assets/sample-stock.xlsx) is a real example workbook. The sample button parses its byte-identical bundled base64 copy, so it also works offline in Expo Go. Import up to 500 data rows / 2 MB. The selected local file is read through Expo's file-capable fetch, with no upload.
 - SheetJS is pinned to the official [0.20.3 vendor distribution](https://docs.sheetjs.com/docs/getting-started/installation/nodejs/) rather than the outdated npm-registry build. Install dependencies through `npx expo install` when adding or changing packages.
@@ -100,3 +100,67 @@ Phone-width browser verification covers onboarding, business switch, outreach, t
 ## Screenshots
 
 [Today — Kofe Tau](docs/screenshots/today-coffee.png) · [AI opportunities](docs/screenshots/opportunities.png) · [Skins in dark mode](docs/screenshots/skins-dark.png)
+
+## Подключение AI
+
+AI работает через `supabase/functions/ai` (Deno). В приложение попадают **только публичные URL и anon key**. Gemini/Anthropic API keys и Supabase service-role key никогда не добавляются в `.env` приложения. Без конфигурации или при ошибке/тайм-ауте показывается «демо-режим» и локальный результат. Платежи и отправка сообщений клиентам по-прежнему локальные моки.
+
+Из корня репозитория владелец выполняет:
+
+```sh
+npx supabase login
+npx supabase link --project-ref YOUR_PROJECT_REF
+npx supabase db push
+npx supabase secrets set AI_PROVIDER=gemini GEMINI_API_KEY=YOUR_GEMINI_API_KEY GEMINI_MODEL=gemini-3.5-flash-lite
+npx supabase functions deploy ai
+cp .env.example .env
+```
+
+В Supabase Dashboard → Authentication → Sign In / Providers включите **Anonymous Sign-Ins**. Приложение создаёт анонимную сессию и сохраняет её через AsyncStorage; ID пользователя этой сессии — стабильный идентификатор установки. Функция проверяет bearer token через `auth.getUser()` и совпадение `x-device-id` с проверенным ID. `verify_jwt = false` отключает только проверку старого JWT на шлюзе, а **не аутентификацию обработчика**. Это поддерживает проекты с современными signing keys. Запрос с одним anon key без пользовательской сессии отклоняется.
+
+Содержимое `.env` (ключ из Project Settings → API):
+
+```dotenv
+EXPO_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
+```
+
+Перезапустите Metro: `npx expo start --clear`. `.env` игнорируется Git. Для переключения провайдера:
+
+```sh
+npx supabase secrets set AI_PROVIDER=anthropic ANTHROPIC_API_KEY=YOUR_ANTHROPIC_API_KEY ANTHROPIC_MODEL=claude-haiku-4-5
+```
+
+Оба имени модели задаются секретами; указанные небольшие модели — значения по умолчанию. Проверяйте доступность в своём аккаунте: [Gemini models](https://ai.google.dev/gemini-api/docs/models), [Claude Messages API](https://platform.claude.com/docs/en/api/messages). REST-адаптер не требует provider SDK в мобильном приложении.
+
+### Поведение и ограничения
+
+- `analyze_message`: текст ≤2000 символов, каталог ≤200 товаров, строгая Zod-валидация, только существующие ID/варианты, повтор невалидного ответа один раз, затем `other` с confidence 0. Дата «сегодня» передаётся устройством. Результат, включая демо-результат, кешируется по бизнесу и ID сообщения в AsyncStorage; конкурентные вызовы объединяются. Повторный анализ не отправляет сообщение снова. Для нового текста нужен новый ID сообщения.
+- `draft_reply`: последние ≤10 сообщений, три коротких варианта ответа на языке клиента. Нажмите «Предложить ответы» в чате, затем выберите и отредактируйте вариант.
+- `read_invoice`: выбранное фото преобразуется в JPEG ≤1600 px по длинной стороне; base64 ≤4 MB. Строки и найденные варианты остаются редактируемыми, низкая уверенность выделяется «Проверьте». Поставщик/дата возвращаются API, склад использует строки. Демо-образец не отправляет фото.
+- `map_excel_columns`: кнопка «Определить колонки с AI» передаёт заголовки и первые пять строк. API возвращает name/qty/price/sku/size/color, индексы с нуля, -1 при отсутствии. Текущий склад использует пять полей без SKU; SKU сохраняется только в ответе API. Пользователь проверяет сопоставление перед импортом.
+- `write_campaign`: «Написать с AI» в предпросмотре рассылки. Числа вычисляет `opportunities.ts`; цена подставляется сервером вместо `{{price}}`. Ответы с буквальными цифрами/процентами/скидками отклоняются. Предпросмотр требует проверки продавцом; AI не отправляет рассылку.
+- Тайм-аут приложения — 15 секунд (включая получение сессии), провайдера — 13 секунд на оба варианта ответа. Сетевая ошибка показывает русский текст и кнопку повтора для ответов, импорта и кампании. Анализ сообщений вместо повторной передачи использует сохранённый результат.
+- Лимит — 60 запросов за 60-секундное окно на проверенный ID установки, атомарно в Postgres, общий для всех Edge isolates. При недоступной БД обработчик закрывает доступ. Миграция обязательна: без `db push` AI вернётся к демо. Таблица недоступна anon/authenticated; RPC доступна только service_role. Удаление auth-пользователя удаляет счётчик.
+- Переустановка/удаление AsyncStorage создаёт новый анонимный ID: это лимит установки, не защита от массовой регистрации. Для публичного production-запуска настройте Supabase Auth anti-abuse/CAPTCHA и бюджеты провайдера; CAPTCHA потребует отдельного UI. Глобального платного лимита здесь нет.
+- Серверные application-логи содержат только task, inputTokens, outputTokens и latency. Сообщения, изображения, ключи и provider error bodies не логируются. Контент передаётся выбранному AI-провайдеру; подтверждение заказа/изменение склада остаётся за продавцом.
+
+### Проверки AI
+
+```sh
+npm test
+npx tsc --noEmit
+npx expo install --check
+npx expo-doctor
+npx --yes deno check --config supabase/functions/ai/deno.json supabase/functions/ai/index.ts supabase/functions/ai/test.ts
+npm run test:edge
+npx expo export --platform all
+```
+
+Живой smoke-test десяти синтетических сообщений kk/ru/en/mixed (после настройки и деплоя; расходует до десяти AI-запросов):
+
+```sh
+npx --yes deno run --env-file=.env --allow-env --allow-net --config supabase/functions/ai/deno.json supabase/functions/ai/test.ts
+```
+
+Скрипт печатает номер и разобранный результат, а не credentials. Unit-тесты подменяют провайдера и проверяют auth, лимит, schema repair, каталог, лимиты входа, безопасные ошибки, оба адаптера, cache/fallback/timeout. Живой деплой, реальные ответы провайдера, миграция на Supabase и фото на физическом Expo Go требуют проекта/секретов владельца; локальные тесты их не подтверждают.
