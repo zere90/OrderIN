@@ -1,219 +1,512 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
-import { seed } from "../data/mock";
-import { Chat, Message, Order, Product } from "../types";
-import { ru } from "../i18n/ru";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { seed, seedBusiness } from "../data/mock";
+import {
+  Business,
+  BusinessType,
+  Order,
+  Message,
+  Opportunity,
+  ImportRow,
+  ImportMode,
+  StockSource,
+} from "../types";
+import {
+  totalOf,
+  validateOrder,
+  inventoryNeeds,
+  validateImport,
+  productKey,
+  depositFor,
+} from "../services/inventory";
 import { aiService } from "../services/ai";
 import { paymentService } from "../services/payments";
 import { messagingService } from "../services/messaging";
-export const totalOf = (order: Order, products: Product[]) =>
-  order.total ??
-  order.items.reduce(
-    (sum, i) =>
-      sum + (products.find((p) => p.id === i.productId)?.price || 0) * i.qty,
-    0,
-  );
-export function validateOrder(order: Order, products: Product[]) {
-  if (
-    !order.items.length ||
-    order.items.some(
-      (i) =>
-        !Number.isInteger(i.qty) ||
-        i.qty < 1 ||
-        !products.some((p) => p.id === i.productId),
-    )
-  )
-    throw Error(ru.invalid);
-  if (
-    order.date &&
-    (!/^\d{4}-\d{2}-\d{2}$/.test(order.date) ||
-      Number.isNaN(Date.parse(order.date)) ||
-      new Date(order.date).toISOString().slice(0, 10) !== order.date)
-  )
-    throw Error(ru.invalid);
-  const quantities = new Map<string, number>();
-  order.items.forEach((i) =>
-    quantities.set(i.productId, (quantities.get(i.productId) || 0) + i.qty),
-  );
-  for (const [id, qty] of quantities)
-    if (qty > (products.find((p) => p.id === id)?.stock || 0))
-      throw Error(ru.shortage);
-}
+import { v2 as ru } from "../i18n/ru";
+export { totalOf, validateOrder } from "../services/inventory";
+const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 interface State {
-  products: Product[];
-  chats: Chat[];
-  messages: Message[];
-  orders: Order[];
+  businesses: Record<string, Business>;
+  currentBusinessId: string;
+  owner: string;
+  onboarded: boolean;
+  mode: "system" | "light" | "dark";
   hydrated: boolean;
   reset: () => void;
-  read: (id: string) => void;
-  stock: (id: string, delta: number) => void;
+  switchBusiness: (id: string) => void;
+  addBusiness: (
+    type: BusinessType,
+    answers?: Record<string, string>,
+    connections?: Record<string, boolean>,
+    forceNew?: boolean,
+  ) => string;
+  completeOnboarding: () => void;
+  setMode: (mode: State["mode"]) => void;
+  read: (bid: string, id: string) => void;
   edit: (
+    bid: string,
     id: string,
-    patch: Partial<Pick<Order, "items" | "date" | "address">>,
+    patch: Partial<Pick<Order, "items" | "date" | "address" | "total">>,
   ) => void;
-  confirm: (id: string) => Promise<void>;
-  pay: (id: string) => Promise<void>;
-  finish: (id: string) => void;
-  cancel: (id: string) => void;
-  reply: (id: string, text: string) => Promise<void>;
-  analyze: (message: Message) => Promise<void>;
+  confirm: (bid: string, id: string) => Promise<void>;
+  pay: (bid: string, id: string) => Promise<void>;
+  finish: (bid: string, id: string) => void;
+  cancel: (bid: string, id: string) => void;
+  reply: (bid: string, id: string, text: string) => Promise<void>;
+  analyze: (bid: string, message: Message) => Promise<void>;
+  stock: (bid: string, id: string, delta: number) => void;
+  importStock: (
+    bid: string,
+    rows: ImportRow[],
+    mode: ImportMode,
+    source: StockSource,
+    expected?: string,
+  ) => void;
+  hide: (bid: string, id: string, hidden: boolean) => void;
+  sendOpportunity: (
+    bid: string,
+    op: Opportunity,
+    text: string,
+    recipients: string[],
+  ) => Promise<void>;
+  createOpportunity: (bid: string, op: Opportunity) => string | undefined;
+  checkItem: (bid: string, listId: string, itemId: string) => void;
+  createOrder: (bid: string, productId: string, chatId?: string) => string;
 }
 let generation = 0;
 const locks = new Set<string>();
+export const stockFingerprint = (b: Business) =>
+  JSON.stringify(b.products.map((p) => [p.id, p.stock, p.price]));
 export const useStore = create<State>()(
   persist(
-    (set, get) => ({
-      ...seed(),
-      hydrated: false,
-      reset: () => {
-        generation++;
-        set(seed());
-      },
-      read: (id) =>
-        set((s) => ({
-          chats: s.chats.map((c) =>
-            c.id === id ? { ...c, unread: false } : c,
-          ),
-        })),
-      stock: (id, delta) =>
-        set((s) => ({
-          products: s.products.map((p) =>
-            p.id === id ? { ...p, stock: Math.max(0, p.stock + delta) } : p,
-          ),
-        })),
-      edit: (id, patch) =>
-        set((s) => ({
-          orders: s.orders.map((o) =>
-            o.id === id && o.status === "draft" ? { ...o, ...patch } : o,
-          ),
-        })),
-      confirm: async (id) => {
-        if (locks.has(id)) return;
-        locks.add(id);
-        const revision = generation;
-        try {
-          const order = get().orders.find((o) => o.id === id);
-          if (!order || order.status !== "draft") return;
-          validateOrder(order, get().products);
-          const url = await paymentService.createKaspiLink(order);
-          const message = await messagingService.sendMessage(
-            order.chatId,
-            `${ru.mockLink}\n${url}`,
-            "bot",
-          );
-          if (revision !== generation) return;
-          const current = get().orders.find((o) => o.id === id);
-          if (!current || current.status !== "draft") return;
-          validateOrder(current, get().products);
+    (set, get) => {
+      const update = (bid: string, fn: (b: Business) => Business) =>
+        set((s) =>
+          s.businesses[bid]
+            ? { businesses: { ...s.businesses, [bid]: fn(s.businesses[bid]) } }
+            : {},
+        );
+      return {
+        ...seed(),
+        hydrated: false,
+        reset: () => {
+          generation++;
+          set({ ...seed(), onboarded: true });
+        },
+        setMode: (mode) => set({ mode }),
+        completeOnboarding: () => set({ onboarded: true }),
+        switchBusiness: (id) => {
+          if (get().businesses[id]) set({ currentBusinessId: id });
+        },
+        addBusiness: (
+          type,
+          answers = {},
+          connections = {},
+          forceNew = false,
+        ) => {
+          const existing = forceNew
+            ? undefined
+            : Object.values(get().businesses).find((b) => b.type === type);
+          const id = existing?.id || `${type}-${uid()}`;
           set((s) => ({
-            orders: s.orders.map((o) =>
-              o.id === id
+            businesses: {
+              ...s.businesses,
+              [id]: {
+                ...(existing || seedBusiness(type, id)),
+                answers,
+                connections,
+              },
+            },
+            currentBusinessId: id,
+          }));
+          return id;
+        },
+        read: (bid, id) =>
+          update(bid, (b) => ({
+            ...b,
+            chats: b.chats.map((c) => (c.id === id ? { ...c, unread: 0 } : c)),
+          })),
+        edit: (bid, id, patch) =>
+          update(bid, (b) => ({
+            ...b,
+            orders: b.orders.map((o) =>
+              o.id === id && o.status === "draft"
                 ? {
                     ...o,
-                    status: "awaiting_payment",
-                    paymentUrl: url,
-                    total: totalOf(o, s.products),
+                    ...patch,
+                    total: patch.items ? undefined : (patch.total ?? o.total),
+                    deposit: patch.items
+                      ? depositFor(patch.items, b.products)
+                      : o.deposit,
                   }
                 : o,
             ),
-            messages: [...s.messages, message],
-          }));
-        } finally {
-          locks.delete(id);
-        }
-      },
-      pay: async (id) => {
-        if (locks.has(id)) return;
-        locks.add(id);
-        const revision = generation;
-        try {
-          const receipt = await paymentService.simulatePayment(id);
-          if (revision !== generation) return;
-          const order = get().orders.find((o) => o.id === id);
-          if (!order || order.status !== "awaiting_payment") return;
-          validateOrder(order, get().products);
-          set((s) => ({
-            orders: s.orders.map((o) =>
-              o.id === id
-                ? { ...o, status: "paid", paidAt: receipt.paidAt }
+          })),
+        confirm: async (bid, id) => {
+          const key = `${bid}/${id}`;
+          if (locks.has(key)) return;
+          locks.add(key);
+          const revision = generation;
+          try {
+            const b = get().businesses[bid];
+            const order = b?.orders.find((o) => o.id === id);
+            if (!order || order.status !== "draft") return;
+            validateOrder(order, b.products);
+            if (
+              order.total !== undefined &&
+              (!Number.isFinite(order.total) || order.total < 0)
+            )
+              throw Error(ru.invalid);
+            const url = await paymentService.createKaspiLink(order);
+            const message = await messagingService.sendMessage(
+              order.chatId,
+              `${ru.mockLink}\n${url}`,
+              "bot",
+            );
+            if (revision !== generation) return;
+            update(bid, (current) => {
+              const o = current.orders.find((o) => o.id === id);
+              if (!o || o.status !== "draft") return current;
+              validateOrder(o, current.products);
+              return {
+                ...current,
+                orders: current.orders.map((x) =>
+                  x.id === id
+                    ? {
+                        ...x,
+                        status: "awaiting_payment",
+                        paymentUrl: url,
+                        total: totalOf(x, current.products),
+                        deposit: depositFor(x.items, current.products),
+                      }
+                    : x,
+                ),
+                messages: [...current.messages, message],
+              };
+            });
+          } finally {
+            locks.delete(key);
+          }
+        },
+        pay: async (bid, id) => {
+          const key = `${bid}/${id}`;
+          if (locks.has(key)) return;
+          locks.add(key);
+          const revision = generation;
+          try {
+            const receipt = await paymentService.simulatePayment(id);
+            if (revision !== generation) return;
+            update(bid, (b) => {
+              const order = b.orders.find((o) => o.id === id);
+              if (!order || order.status !== "awaiting_payment") return b;
+              validateOrder(order, b.products);
+              const needs = inventoryNeeds(order.items, b.products);
+              return {
+                ...b,
+                orders: b.orders.map((o) =>
+                  o.id === id
+                    ? { ...o, status: "paid", paidAt: receipt.paidAt }
+                    : o,
+                ),
+                products: b.products.map((p) => ({
+                  ...p,
+                  stock:
+                    Math.round((p.stock - (needs.get(p.id) || 0)) * 10000) /
+                    10000,
+                })),
+                history: [
+                  ...b.history,
+                  ...[...needs].map(([pid, qty]) => ({
+                    id: uid(),
+                    productId: pid,
+                    name: b.products.find((p) => p.id === pid)!.name,
+                    delta: -qty,
+                    source: "sale" as const,
+                    createdAt: receipt.paidAt,
+                  })),
+                ],
+              };
+            });
+          } finally {
+            locks.delete(key);
+          }
+        },
+        finish: (bid, id) =>
+          update(bid, (b) => ({
+            ...b,
+            orders: b.orders.map((o) =>
+              o.id === id && o.status === "paid"
+                ? { ...o, status: "completed" }
                 : o,
             ),
-            products: s.products.map((p) => ({
-              ...p,
-              stock:
-                p.stock -
-                order.items
-                  .filter((i) => i.productId === p.id)
-                  .reduce((sum, i) => sum + i.qty, 0),
-            })),
+          })),
+        cancel: (bid, id) =>
+          update(bid, (b) => ({
+            ...b,
+            orders: b.orders.map((o) =>
+              o.id === id && ["draft", "awaiting_payment"].includes(o.status)
+                ? { ...o, status: "cancelled" }
+                : o,
+            ),
+          })),
+        reply: async (bid, id, text) => {
+          if (!text.trim()) return;
+          const revision = generation;
+          const message = await messagingService.sendMessage(id, text.trim());
+          if (revision === generation)
+            update(bid, (b) => ({ ...b, messages: [...b.messages, message] }));
+        },
+        analyze: async (bid, message) => {
+          const revision = generation;
+          const b = get().businesses[bid];
+          if (!b) return;
+          const analysis = await aiService.analyzeMessage(
+            message.text,
+            b.products,
+          );
+          if (revision !== generation) return;
+          update(bid, (b) => ({
+            ...b,
+            messages: b.messages.map((m) =>
+              m.id === message.id ? { ...m, analysis } : m,
+            ),
+            orders:
+              analysis.type === "order" &&
+              !b.orders.some((o) => o.messageId === message.id)
+                ? [
+                    ...b.orders,
+                    {
+                      id: uid(),
+                      chatId: message.chatId,
+                      messageId: message.id,
+                      items: analysis.items,
+                      date: analysis.date,
+                      address: analysis.address,
+                      status: "draft",
+                      createdAt: new Date().toISOString(),
+                    },
+                  ]
+                : b.orders,
           }));
-        } finally {
-          locks.delete(id);
-        }
-      },
-      finish: (id) =>
-        set((s) => ({
-          orders: s.orders.map((o) =>
-            o.id === id && o.status === "paid"
-              ? { ...o, status: "completed" }
-              : o,
-          ),
-        })),
-      cancel: (id) =>
-        set((s) => ({
-          orders: s.orders.map((o) =>
-            o.id === id && ["draft", "awaiting_payment"].includes(o.status)
-              ? { ...o, status: "cancelled" }
-              : o,
-          ),
-        })),
-      reply: async (id, text) => {
-        if (!text.trim()) return;
-        const revision = generation;
-        const message = await messagingService.sendMessage(id, text.trim());
-        if (revision === generation)
-          set((s) => ({ messages: [...s.messages, message] }));
-      },
-      analyze: async (message) => {
-        const revision = generation;
-        const analysis = await aiService.analyzeMessage(message.text);
-        if (revision !== generation) return;
-        set((s) => ({
-          messages: s.messages.map((m) =>
-            m.id === message.id ? { ...m, analysis } : m,
-          ),
-          orders:
-            analysis.type === "order" &&
-            !s.orders.some((o) => o.messageId === message.id)
-              ? [
-                  ...s.orders,
+        },
+        stock: (bid, id, delta) =>
+          update(bid, (b) => {
+            const p = b.products.find((p) => p.id === id);
+            if (!p || !Number.isFinite(delta)) return b;
+            const qty = Math.max(0, p.stock + delta);
+            return {
+              ...b,
+              products: b.products.map((x) =>
+                x.id === id ? { ...x, stock: qty } : x,
+              ),
+              history: [
+                ...b.history,
+                {
+                  id: uid(),
+                  productId: id,
+                  name: p.name,
+                  delta: qty - p.stock,
+                  source: "manual",
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            };
+          }),
+        importStock: (bid, rows, mode, source, expected) => {
+          validateImport(rows, mode);
+          update(bid, (b) => {
+            if (expected && stockFingerprint(b) !== expected)
+              throw Error(ru.staleImport);
+            const products = [...b.products];
+            const history = [...b.history];
+            for (const row of rows) {
+              const index = products.findIndex((p) =>
+                row.productId
+                  ? p.id === row.productId
+                  : productKey(p) === productKey(row),
+              );
+              const old = products[index];
+              const qty =
+                mode === "add" ? (old?.stock || 0) + row.qty : row.qty;
+              const product = old
+                ? { ...old, name: row.name, stock: qty, price: row.price }
+                : {
+                    id: `${bid}-${uid()}`,
+                    name: row.name,
+                    stock: qty,
+                    price: row.price,
+                    cost: 0,
+                    unit: "шт",
+                    icon: "inventory_2",
+                    keywords: [row.name.toLowerCase()],
+                    category: "product" as const,
+                    size: row.size,
+                    color: row.color,
+                  };
+              if (index < 0) products.push(product);
+              else products[index] = product;
+              history.push({
+                id: uid(),
+                productId: product.id,
+                name: product.name,
+                delta: qty - (old?.stock || 0),
+                priceBefore: old?.price,
+                priceAfter: row.price,
+                source,
+                createdAt: new Date().toISOString(),
+              });
+            }
+            return { ...b, products, history };
+          });
+        },
+        hide: (bid, id, hidden) =>
+          update(bid, (b) => ({
+            ...b,
+            hiddenOpportunities: hidden
+              ? [...new Set([...b.hiddenOpportunities, id])]
+              : b.hiddenOpportunities.filter((x) => x !== id),
+          })),
+        sendOpportunity: async (bid, op, text, recipients) => {
+          const revision = generation;
+          const b = get().businesses[bid];
+          const valid = [...new Set(recipients)].filter(
+            (id) =>
+              op.recipientIds.includes(id) && b.chats.some((c) => c.id === id),
+          );
+          const messages = await Promise.all(
+            valid.map((id) => messagingService.sendMessage(id, text)),
+          );
+          if (revision === generation)
+            update(bid, (b) => ({
+              ...b,
+              messages: [...b.messages, ...messages],
+            }));
+        },
+        createOpportunity: (bid, op) => {
+          let result: string | undefined;
+          update(bid, (b) => {
+            if (b.createdOpportunities.includes(op.id)) return b;
+            const createdOpportunities = [...b.createdOpportunities, op.id];
+            if (op.kind === "shopping") {
+              result = uid();
+              return {
+                ...b,
+                createdOpportunities,
+                lists: [
+                  ...b.lists,
                   {
-                    id: `QZ-${Date.now()}`,
-                    messageId: message.id,
-                    chatId: message.chatId,
-                    items: analysis.items,
-                    date: analysis.date,
-                    address: analysis.address,
-                    status: "draft",
+                    id: result,
+                    title: op.title,
+                    items: op.checklist || [],
                     createdAt: new Date().toISOString(),
                   },
-                ]
-              : s.orders,
-        }));
-      },
-    }),
+                ],
+              };
+            }
+            const original = b.products.find(
+              (p) => p.id === op.items[0]?.productId,
+            );
+            if (!original) return b;
+            const preorder = op.kind === "preorder" || op.kind === "demand";
+            const stock = preorder
+              ? 0
+              : Math.max(
+                  0,
+                  Math.floor(
+                    Math.min(
+                      ...op.items.map(
+                        (i) =>
+                          (b.products.find((p) => p.id === i.productId)
+                            ?.stock || 0) / i.qty,
+                      ),
+                    ),
+                  ),
+                );
+            result = `${bid}-${uid()}`;
+            const product = {
+              ...original,
+              id: result,
+              name: `${op.title}: ${op.items.map((i) => b.products.find((p) => p.id === i.productId)?.name).join(" + ")}`,
+              price: op.price,
+              stock,
+              status: preorder ? ("preorder" as const) : undefined,
+              deposit: preorder ? 0.5 : undefined,
+              components: preorder ? undefined : op.items,
+              keywords: [op.title.toLowerCase()],
+            };
+            return {
+              ...b,
+              createdOpportunities,
+              products: [...b.products, product],
+              history: [
+                ...b.history,
+                {
+                  id: uid(),
+                  productId: result,
+                  name: product.name,
+                  delta: stock,
+                  source: "ai",
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            };
+          });
+          return result;
+        },
+        checkItem: (bid, lid, iid) =>
+          update(bid, (b) => ({
+            ...b,
+            lists: b.lists.map((l) =>
+              l.id === lid
+                ? {
+                    ...l,
+                    items: l.items.map((i) =>
+                      i.id === iid ? { ...i, done: !i.done } : i,
+                    ),
+                  }
+                : l,
+            ),
+          })),
+        createOrder: (bid, pid, chatId) => {
+          const id = uid();
+          update(bid, (b) => {
+            const p = b.products.find((p) => p.id === pid);
+            if (!p) throw Error(ru.invalid);
+            return {
+              ...b,
+              orders: [
+                ...b.orders,
+                {
+                  id,
+                  chatId: chatId || b.chats[0].id,
+                  messageId: `manual-${id}`,
+                  items: [{ productId: pid, qty: 1 }],
+                  status: "draft",
+                  createdAt: new Date().toISOString(),
+                  deposit: p.deposit,
+                },
+              ],
+            };
+          });
+          return id;
+        },
+      };
+    },
     {
-      name: "qazyna-demo-v1",
+      name: "qazyna-demo-v2",
+      version: 2,
       skipHydration: true,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (s) => ({
-        products: s.products,
-        chats: s.chats,
-        messages: s.messages,
-        orders: s.orders,
+        businesses: s.businesses,
+        currentBusinessId: s.currentBusinessId,
+        owner: s.owner,
+        onboarded: s.onboarded,
+        mode: s.mode,
       }),
     },
   ),
 );
+export const useBusiness = () =>
+  useStore((s) => s.businesses[s.currentBusinessId]);

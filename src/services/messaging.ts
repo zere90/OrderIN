@@ -1,7 +1,6 @@
-import { Chat, Message } from "../types";
-import { seed } from "../data/mock";
+import { Business, Chat, Message } from "../types";
 export interface MessagingService {
-  getChats(): Promise<Chat[]>;
+  getChats(business: Business): Promise<Chat[]>;
   sendMessage(
     chatId: string,
     text: string,
@@ -9,8 +8,8 @@ export interface MessagingService {
   ): Promise<Message>;
 }
 export const messagingService: MessagingService = {
-  async getChats() {
-    return seed().chats;
+  async getChats(business) {
+    return business.chats;
   },
   async sendMessage(chatId, text, role = "seller") {
     return {

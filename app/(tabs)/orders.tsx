@@ -1,84 +1,92 @@
+import { Screen } from "../../src/components/Screen";
 import { useState } from "react";
-import { Pressable } from "react-native";
+import { View } from "react-native";
 import { router } from "expo-router";
-import { useStore, totalOf } from "../../src/store";
-import { OrderStatus } from "../../src/types";
-import { customers } from "../../src/data/mock";
-import { ru, money, readableDate } from "../../src/i18n/ru";
+import { useBusiness, totalOf } from "../../src/store";
+import { useTheme } from "../../src/theme";
+import { v2 as ru, money } from "../../src/i18n/ru";
 import {
   Card,
-  Chip,
-  EmptyState,
   Label,
   Row,
-  Screen,
+  SegmentedControl,
+  SpringPress,
   StatusPill,
+  EmptyState,
 } from "../../src/components/ui";
+import { Icon } from "../../src/components/Icon";
 export default function Orders() {
-  const [status, setStatus] = useState<OrderStatus>("awaiting_payment");
-  const { orders, products, chats } = useStore();
-  const list = orders.filter((o) => o.status === status);
+  const b = useBusiness();
+  const t = useTheme();
+  const [status, setStatus] = useState("awaiting_payment");
+  const list = b.orders.filter((o) =>
+    status === "awaiting_payment"
+      ? ["draft", "awaiting_payment"].includes(o.status)
+      : o.status === status,
+  );
   return (
-    <Screen>
-      <Label size={28} bold>
-        {ru.orders}
-      </Label>
-      <Row>
-        {(
-          [
-            "awaiting_payment",
-            "paid",
-            "completed",
-            "draft",
-            "cancelled",
-          ] as const
-        ).map((s) => (
-          <Chip
-            key={s}
-            title={`${ru[s]} · ${orders.filter((o) => o.status === s).length}`}
-            active={status === s}
-            onPress={() => setStatus(s)}
-          />
-        ))}
-      </Row>
+    <Screen title={ru.orders} subtitle={b.name}>
+      <SegmentedControl
+        value={status}
+        onChange={setStatus}
+        items={(["awaiting_payment", "paid", "completed"] as const).map(
+          (id) => ({ id, title: ru[id] }),
+        )}
+      />
       {list.map((order) => (
-        <Pressable
+        <SpringPress
           key={order.id}
-          accessibilityRole="button"
           onPress={() =>
-            router.push({ pathname: "/order/[id]", params: { id: order.id } })
+            router.push({
+              pathname: "/order/[id]",
+              params: { id: order.id, businessId: b.id },
+            })
           }
         >
-          <Card>
-            <Row>
-              <Label bold>{order.id}</Label>
-              <StatusPill status={order.status} />
-            </Row>
-            <Label>
-              {
-                customers.find(
-                  (c) =>
-                    c.id ===
-                    chats.find((ch) => ch.id === order.chatId)?.customerId,
-                )?.name
-              }
-            </Label>
-            <Label muted>
-              {order.items
-                .map(
-                  (i) =>
-                    `${products.find((p) => p.id === i.productId)?.name} × ${i.qty}`,
-                )
-                .join(", ")}
-            </Label>
-            <Row>
-              <Label size={22} bold>
-                {money(totalOf(order, products))}
-              </Label>
-              <Label muted>{readableDate(order.date)}</Label>
+          <Card style={{ padding: 14, borderRadius: 18 }}>
+            <Row style={{ gap: 12 }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: t.tint,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Icon name="receipt_long" size={20} />
+              </View>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Row>
+                  <Label bold style={{ flex: 1 }}>
+                    {
+                      b.customers.find(
+                        (c) =>
+                          c.id ===
+                          b.chats.find((ch) => ch.id === order.chatId)
+                            ?.customerId,
+                      )?.name
+                    }
+                  </Label>
+                  <Label display size={12} color={t.accent}>
+                    {money(totalOf(order, b.products))}
+                  </Label>
+                </Row>
+                <Label muted lines={1} size={12}>
+                  {order.items
+                    .map(
+                      (i) =>
+                        `${b.products.find((p) => p.id === i.productId)?.name} ×${i.qty}`,
+                    )
+                    .join(", ")}
+                </Label>
+                <StatusPill status={order.status} />
+              </View>
+              <Icon name="chevron_right" color={t.muted} size={18} />
             </Row>
           </Card>
-        </Pressable>
+        </SpringPress>
       ))}
       {!list.length && <EmptyState />}
     </Screen>

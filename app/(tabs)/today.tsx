@@ -1,134 +1,113 @@
-import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { Screen } from "../../src/components/Screen";
+import { View, Share } from "react-native";
 import { router } from "expo-router";
-import { useStore, totalOf } from "../../src/store";
-import { localDate } from "../../src/data/mock";
-import { ru, money } from "../../src/i18n/ru";
-import { Button, Card, Label, Row, Screen } from "../../src/components/ui";
+import { useBusiness, useStore } from "../../src/store";
+import { localDate, offsetDate } from "../../src/data/mock";
+import { collectedOf } from "../../src/services/inventory";
+import { getOpportunities } from "../../src/services/opportunities";
+import { v2 as ru } from "../../src/i18n/ru";
 import { useTheme } from "../../src/theme";
+import {
+  Label,
+  Row,
+  SpringPress,
+  ProductThumb,
+  Card,
+} from "../../src/components/ui";
+import {
+  HeroRevenueCard,
+  StatTile,
+} from "../../src/components/HeroRevenueCard";
+import { OpportunityCard } from "../../src/components/OpportunityCard";
+import { useToast } from "../../src/components/Toast";
 export default function Today() {
-  const [resetOpen, setResetOpen] = useState(false);
-  const { orders, products } = useStore();
-  const c = useTheme();
-  const today = localDate();
-  const paid = orders.filter(
-    (o) => o.paidAt && localDate(new Date(o.paidAt)) === today,
+  const b = useBusiness();
+  const t = useTheme();
+  const toast = useToast();
+  const data = Array.from({ length: 7 }, (_, i) =>
+    b.orders
+      .filter(
+        (o) =>
+          o.paidAt &&
+          localDate(new Date(o.paidAt)) === localDate(offsetDate(i - 6)),
+      )
+      .reduce((s, o) => s + collectedOf(o, b.products), 0),
   );
-  const pending = orders.filter((o) => o.status === "awaiting_payment");
-  const draft = orders.filter((o) => o.status === "draft");
-  const low = products.filter((p) => p.stock < 3);
-  const dayOrders = orders.filter(
-    (o) => localDate(new Date(o.createdAt)) === today,
-  );
+  const op = getOpportunities(b)[0];
+  const actions = [
+    {
+      title: ru.newOrder,
+      icon: "add_shopping_cart",
+      press: () => {
+        const p = b.products.find(
+          (p) => p.category === "product" || p.category === "service",
+        );
+        if (p) {
+          const id = useStore.getState().createOrder(b.id, p.id);
+          router.push({
+            pathname: "/order/[id]",
+            params: { id, businessId: b.id },
+          });
+        }
+      },
+    },
+    {
+      title: ru.stock,
+      icon: "inventory_2",
+      press: () => router.push("/stock"),
+    },
+    {
+      title: ru.share,
+      icon: "share",
+      press: () => {
+        void Share.share({
+          message: `Qazyna · ${b.name}\n${ru.journey}`,
+        }).catch(() => toast(ru.error));
+      },
+    },
+  ];
   return (
     <Screen>
-      <Label size={28} bold>
-        {ru.summary}
+      <HeroRevenueCard data={data} />
+      <Row style={{ gap: 12, alignItems: "stretch" }}>
+        <StatTile
+          title={ru.orderCount}
+          value={
+            b.orders.filter(
+              (o) => localDate(new Date(o.createdAt)) === localDate(),
+            ).length
+          }
+          icon="receipt_long"
+        />
+        <StatTile
+          title={ru.newChats}
+          value={b.chats.filter((c) => c.unread > 0).length}
+          icon="chat_bubble"
+        />
+      </Row>
+      {op && <OpportunityCard key={`${b.id}-${op.id}`} op={op} compact />}
+      <Label muted bold size={11}>
+        {ru.quick}
       </Label>
-      <Label muted>{ru.summaryHint}</Label>
-      <View
-        style={{
-          backgroundColor: c.primary,
-          borderRadius: 20,
-          padding: 24,
-          gap: 12,
-        }}
-      >
-        <Label color={c.bg} size={12}>
-          {ru.revenue}
-        </Label>
-        <Label color={c.bg} size={36} bold>
-          {money(paid.reduce((sum, o) => sum + totalOf(o, products), 0))}
-        </Label>
-        <Label color={c.bg} size={12}>
-          {ru.bakery}
-        </Label>
-      </View>
-      <Label bold>{ru.ordersToday}</Label>
-      <Row>
-        {(
-          [
-            "draft",
-            "awaiting_payment",
-            "paid",
-            "completed",
-            "cancelled",
-          ] as const
-        ).map((status) => (
-          <View key={status} style={{ minWidth: "45%", flexGrow: 1 }}>
-            <Card>
-              <Label size={26} bold>
-                {dayOrders.filter((o) => o.status === status).length}
-              </Label>
-              <Label muted size={12}>
-                {ru[status]}
+      <Row style={{ gap: 12, alignItems: "stretch" }}>
+        {actions.map((a) => (
+          <SpringPress key={a.title} onPress={a.press} style={{ flex: 1 }}>
+            <Card
+              style={{
+                alignItems: "center",
+                padding: 12,
+                gap: 6,
+                borderColor: t.tint,
+              }}
+            >
+              <ProductThumb icon={a.icon} size={36} />
+              <Label bold size={11} style={{ textAlign: "center" }}>
+                {a.title}
               </Label>
             </Card>
-          </View>
+          </SpringPress>
         ))}
       </Row>
-      <Card>
-        <Label bold>
-          {ru.pending} · {pending.length}
-        </Label>
-        <Label size={24} bold>
-          {money(pending.reduce((sum, o) => sum + totalOf(o, products), 0))}
-        </Label>
-      </Card>
-      <Label size={20} bold>
-        {ru.needsConfirm} · {draft.length}
-      </Label>
-      {draft.map((o) => (
-        <Pressable
-          key={o.id}
-          accessibilityRole="button"
-          onPress={() =>
-            router.push({ pathname: "/order/[id]", params: { id: o.id } })
-          }
-        >
-          <Card>
-            <Row>
-              <Label bold>✦ {o.id}</Label>
-              <Label>{money(totalOf(o, products))} →</Label>
-            </Row>
-          </Card>
-        </Pressable>
-      ))}
-      <Card>
-        <Label bold>{ru.low}</Label>
-        {low.length ? (
-          low.map((p) => (
-            <Label key={p.id}>
-              {p.emoji} {p.name} · {p.stock}
-            </Label>
-          ))
-        ) : (
-          <Label muted>{ru.noLow}</Label>
-        )}
-      </Card>
-      {resetOpen ? (
-        <Card>
-          <Label bold>{ru.resetTitle}</Label>
-          <Label muted>{ru.resetBody}</Label>
-          <Button
-            title={ru.resetConfirm}
-            onPress={() => {
-              useStore.getState().reset();
-              setResetOpen(false);
-            }}
-          />
-          <Button
-            title={ru.keep}
-            secondary
-            onPress={() => setResetOpen(false)}
-          />
-        </Card>
-      ) : (
-        <Button title={ru.reset} secondary onPress={() => setResetOpen(true)} />
-      )}
-      <Label size={10} muted>
-        {ru.demo}
-      </Label>
     </Screen>
   );
 }

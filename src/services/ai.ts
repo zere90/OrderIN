@@ -1,7 +1,7 @@
-import { Analysis } from "../types";
+import { Analysis, Product } from "../types";
 import { localDate, products } from "../data/mock";
 export interface AiService {
-  analyzeMessage(text: string): Promise<Analysis>;
+  analyzeMessage(text: string, catalog?: Product[]): Promise<Analysis>;
 }
 const numbers: Record<string, number> = {
   one: 1,
@@ -25,13 +25,27 @@ const numbers: Record<string, number> = {
   бес: 5,
   алты: 6,
 };
-export function parseMessage(text: string, now = new Date()): Analysis {
+export function parseMessage(
+  text: string,
+  now = new Date(),
+  catalog: Product[] = products,
+): Analysis {
   const lower = text.toLowerCase();
   const wantsOrder = /закаж|заказ|керек|тапсырыс|order|please|хочу|нужно/.test(
     lower,
   );
   const feedback = /спасибо|рахмет|thank|вкусно|дәмді|delicious/.test(lower);
-  const items = products.flatMap((p) => {
+  const eligible = catalog.filter((p) => {
+    if (!p.size) return true;
+    const variants = catalog.filter((x) => x.name === p.name);
+    const explicit = variants.find(
+      (x) =>
+        x.size &&
+        new RegExp(`(?:^|\\s)${x.size}(?=[\\s,.!?]|$)`, "i").test(text),
+    );
+    return p.id === (explicit || variants[0]).id;
+  });
+  const items = eligible.flatMap((p) => {
     const keyword = p.keywords.find((k) => lower.includes(k));
     if (!keyword) return [];
     const index = lower.indexOf(keyword);
@@ -78,8 +92,8 @@ export function parseMessage(text: string, now = new Date()): Analysis {
   };
 }
 export const aiService: AiService = {
-  async analyzeMessage(text) {
+  async analyzeMessage(text, catalog) {
     await new Promise((resolve) => setTimeout(resolve, 600));
-    return parseMessage(text);
+    return parseMessage(text, new Date(), catalog);
   },
 };

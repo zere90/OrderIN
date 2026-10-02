@@ -1,122 +1,139 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { View } from "react-native";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
-import { useTheme } from "../theme";
 import { Order } from "../types";
-import { useStore, totalOf } from "../store";
-import { money, readableDate, ru } from "../i18n/ru";
-import { Button, Card, Field, Label, Row, StatusPill } from "./ui";
+import { useStore, totalOf, validateOrder } from "../store";
+import { money, readableDate, v2 as ru } from "../i18n/ru";
+import { useTheme } from "../theme";
+import {
+  AICard,
+  AILabel,
+  Row,
+  Label,
+  Button,
+  Field,
+  StatusPill,
+  Chip,
+} from "./ui";
+import { useToast } from "./Toast";
 export function OrderCard({
   order,
+  businessId,
   editable = false,
 }: {
   order: Order;
+  businessId: string;
   editable?: boolean;
 }) {
-  const colors = useTheme();
-  const products = useStore((s) => s.products);
-  const edit = useStore((s) => s.edit);
+  const b = useStore((s) => s.businesses[businessId]);
+  const t = useTheme();
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState("");
-  useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(""), 4000);
-    return () => clearTimeout(timer);
-  }, [notice]);
   const canEdit = editable && order.status === "draft";
-  const shortage = order.items.some(
-    (i) => i.qty > (products.find((p) => p.id === i.productId)?.stock || 0),
-  );
+  let warning = "";
+  try {
+    validateOrder(order, b.products);
+  } catch (e) {
+    warning = e instanceof Error ? e.message : ru.invalid;
+  }
+  const edit = (
+    patch: Parameters<ReturnType<typeof useStore.getState>["edit"]>[2],
+  ) => useStore.getState().edit(b.id, order.id, patch);
   async function run(
     action: () => Promise<void>,
-    success: string,
+    message: string,
     payment = false,
   ) {
     setBusy(true);
     try {
       await action();
-      setNotice(success);
+      toast(message);
       if (payment)
         void Haptics.notificationAsync(
           Haptics.NotificationFeedbackType.Success,
         ).catch(() => {});
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : ru.error);
+      toast(e instanceof Error ? e.message : ru.error);
     } finally {
       setBusy(false);
     }
   }
   return (
-    <Card>
+    <AICard>
       <Row>
-        <Label bold>{order.id}</Label>
+        <AILabel />
+        <Label bold size={12} style={{ flex: 1 }}>
+          {ru.detected}
+        </Label>
         <StatusPill status={order.status} />
       </Row>
-      {order.items.map((item, index) => {
-        const product = products.find((p) => p.id === item.productId)!;
+      {order.items.map((it, i) => {
+        const p = b.products.find((p) => p.id === it.productId);
         return (
-          <View key={`${item.productId}-${index}`} style={{ gap: 8 }}>
+          <View key={`${it.productId}-${i}`} style={{ gap: 8 }}>
             <Row>
-              <Label size={24}>{product.emoji}</Label>
-              <View style={{ flex: 1 }}>
-                <Label bold>{product.name}</Label>
-                <Label muted size={12}>
-                  {money(product.price)} × {item.qty}
-                </Label>
-              </View>
-              <Label bold>{money(product.price * item.qty)}</Label>
+              <Label bold size={13} style={{ flex: 1 }}>
+                {p?.name} {p?.size}
+              </Label>
+              <Label muted size={12}>
+                ×{it.qty}
+              </Label>
+              <Label bold color={t.accent} size={13}>
+                {money((p?.price || 0) * it.qty)}
+              </Label>
             </Row>
             {canEdit && (
               <Row>
                 <Button
                   title="−"
+                  small
                   secondary
-                  disabled={busy || item.qty <= 1}
+                  disabled={busy || it.qty <= 1}
                   onPress={() =>
-                    edit(order.id, {
-                      items: order.items.map((it, j) =>
-                        j === index ? { ...it, qty: it.qty - 1 } : it,
+                    edit({
+                      items: order.items.map((x, j) =>
+                        j === i ? { ...x, qty: x.qty - 1 } : x,
                       ),
                     })
                   }
                 />
                 <Field
-                  accessibilityLabel={`${ru.quantity}: ${product.name}`}
+                  accessibilityLabel={`${ru.qty}: ${p?.name}`}
+                  value={String(it.qty)}
                   keyboardType="number-pad"
-                  value={String(item.qty)}
+                  style={{ width: 60 }}
                   editable={!busy}
                   onChangeText={(text) =>
-                    edit(order.id, {
-                      items: order.items.map((it, j) =>
-                        j === index
-                          ? { ...it, qty: Number(text.replace(/\D/g, "")) }
-                          : it,
+                    edit({
+                      items: order.items.map((x, j) =>
+                        j === i
+                          ? { ...x, qty: Number(text.replace(/\D/g, "")) }
+                          : x,
                       ),
                     })
                   }
-                  style={{ width: 70 }}
                 />
                 <Button
                   title="+"
+                  small
                   secondary
                   disabled={busy}
                   onPress={() =>
-                    edit(order.id, {
-                      items: order.items.map((it, j) =>
-                        j === index ? { ...it, qty: it.qty + 1 } : it,
+                    edit({
+                      items: order.items.map((x, j) =>
+                        j === i ? { ...x, qty: x.qty + 1 } : x,
                       ),
                     })
                   }
                 />
                 <Button
                   title={ru.remove}
+                  small
                   secondary
                   disabled={busy}
                   onPress={() =>
-                    edit(order.id, {
-                      items: order.items.filter((_, j) => j !== index),
-                    })
+                    edit({ items: order.items.filter((_, j) => j !== i) })
                   }
                 />
               </Row>
@@ -126,71 +143,97 @@ export function OrderCard({
       })}
       {canEdit && (
         <>
-          <Label muted size={12}>
+          <Label muted size={11}>
             {ru.add}
           </Label>
-          <Row>
-            {products
-              .filter((p) => !order.items.some((i) => i.productId === p.id))
+          <Row style={{ flexWrap: "wrap" }}>
+            {b.products
+              .filter(
+                (p) =>
+                  ["product", "service"].includes(p.category) &&
+                  !order.items.some((i) => i.productId === p.id),
+              )
               .map((p) => (
-                <Button
+                <Chip
                   key={p.id}
-                  title={`${p.emoji} ${p.name}`}
-                  secondary
-                  disabled={busy}
+                  title={`${p.name} ${p.size || ""}`}
                   onPress={() =>
-                    edit(order.id, {
+                    edit({
                       items: [...order.items, { productId: p.id, qty: 1 }],
                     })
                   }
                 />
               ))}
           </Row>
-          <Label muted size={12}>
+          <Label muted size={11}>
             {ru.date}
           </Label>
           <Field
-            accessibilityLabel={ru.date}
             value={order.date || ""}
-            editable={!busy}
-            placeholder="2026-09-30"
-            onChangeText={(date) => edit(order.id, { date })}
+            placeholder={ru.date}
+            accessibilityLabel={ru.date}
+            onChangeText={(date) => edit({ date })}
           />
-          <Label muted size={12}>
+          <Label muted size={11}>
             {ru.address}
           </Label>
           <Field
-            accessibilityLabel={ru.address}
             value={order.address || ""}
-            editable={!busy}
             placeholder={ru.address}
-            onChangeText={(address) => edit(order.id, { address })}
+            accessibilityLabel={ru.address}
+            onChangeText={(address) => edit({ address })}
           />
         </>
       )}
       {!canEdit && (
         <>
-          <Label muted>{readableDate(order.date)}</Label>
-          <Label muted>{order.address || "—"}</Label>
+          <Label muted size={12}>
+            {readableDate(order.date)}
+          </Label>
+          <Label muted size={12}>
+            {order.address || "—"}
+          </Label>
         </>
       )}
-      <Row>
-        <View style={{ flex: 1 }}>
-          <Label muted>{ru.total}</Label>
-        </View>
-        <Label size={23} bold>
-          {money(totalOf(order, products))}
-        </Label>
+      <Row
+        style={{ borderTopWidth: 1.5, borderColor: t.border, paddingTop: 12 }}
+      >
+        <Label style={{ flex: 1 }}>{ru.total}</Label>
+        {canEdit ? (
+          <Field
+            accessibilityLabel={ru.total}
+            keyboardType="decimal-pad"
+            value={String(totalOf(order, b.products))}
+            onChangeText={(text) =>
+              edit({ total: Number(text.replace(",", ".")) })
+            }
+            style={{ width: 130 }}
+          />
+        ) : (
+          <Label display size={18} color={t.accent}>
+            {money(totalOf(order, b.products))}
+          </Label>
+        )}
       </Row>
-      {shortage && ["draft", "awaiting_payment"].includes(order.status) && (
-        <Label>{ru.shortage}</Label>
+      {order.deposit && (
+        <Label size={12} color={t.accent}>
+          {ru.deposit}: {money(totalOf(order, b.products) * order.deposit)}
+        </Label>
+      )}
+      {!!warning && ["draft", "awaiting_payment"].includes(order.status) && (
+        <Label size={12} color={t.warningText}>
+          {warning}
+        </Label>
       )}
       {canEdit && (
         <Button
           title={ru.confirm}
-          disabled={busy || shortage || !order.items.length}
+          disabled={busy || !!warning}
           onPress={() =>
-            void run(() => useStore.getState().confirm(order.id), ru.sent)
+            void run(
+              () => useStore.getState().confirm(b.id, order.id),
+              ru.linkSent,
+            )
           }
         />
       )}
@@ -198,54 +241,43 @@ export function OrderCard({
         <>
           <Button
             title={ru.simulate}
-            disabled={busy || shortage}
+            disabled={busy || !!warning}
             onPress={() =>
               void run(
-                () => useStore.getState().pay(order.id),
+                () => useStore.getState().pay(b.id, order.id),
                 ru.paymentSuccess,
                 true,
               )
             }
           />
-          {order.paymentUrl && (
-            <Button
-              title={ru.copy}
-              secondary
-              onPress={() =>
-                void run(async () => {
-                  await Clipboard.setStringAsync(order.paymentUrl!);
-                }, ru.copied)
-              }
-            />
-          )}
+          <Button
+            secondary
+            title={ru.copy}
+            onPress={() =>
+              void run(async () => {
+                await Clipboard.setStringAsync(order.paymentUrl || "");
+              }, ru.copied)
+            }
+          />
         </>
       )}
       {order.status === "paid" && (
         <Button
           title={ru.complete}
-          onPress={() => useStore.getState().finish(order.id)}
+          onPress={() => {
+            useStore.getState().finish(b.id, order.id);
+            toast(ru.completed);
+          }}
         />
       )}
       {editable && ["draft", "awaiting_payment"].includes(order.status) && (
         <Button
           title={ru.cancel}
-          disabled={busy}
           secondary
-          onPress={() => useStore.getState().cancel(order.id)}
+          disabled={busy}
+          onPress={() => useStore.getState().cancel(b.id, order.id)}
         />
       )}
-      {!!notice && (
-        <View
-          accessibilityLiveRegion="polite"
-          style={{
-            padding: 12,
-            borderRadius: 12,
-            backgroundColor: colors.tint,
-          }}
-        >
-          <Label bold>{notice}</Label>
-        </View>
-      )}
-    </Card>
+    </AICard>
   );
 }
