@@ -1,7 +1,7 @@
 import { aiService } from "../services/ai";
 import { AiStatus } from "./AiStatus";
 import { aiRu } from "../i18n/ru";
-import { useRef, useState } from "react";
+import { ReactNode, useRef, useState } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
 import { Opportunity } from "../types";
@@ -20,7 +20,10 @@ import {
   Row,
 } from "./ui";
 import { useToast } from "./Toast";
-export function OpportunityCard({
+export function OpportunityCard(props: { op: Opportunity; compact?: boolean } | { children: ReactNode }) {
+  return "children" in props ? <AICard>{props.children}</AICard> : <ComputedOpportunityCard {...props} />;
+}
+function ComputedOpportunityCard({
   op,
   compact = false,
 }: {

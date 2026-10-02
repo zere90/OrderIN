@@ -1,3 +1,5 @@
+import { aiConfigured } from "../../src/services/supabase";
+import { RemoteChat } from "../../src/components/RemoteChat";
 import { AiStatus } from "../../src/components/AiStatus";
 import { aiService } from "../../src/services/ai";
 import { aiRu } from "../../src/i18n/ru";
@@ -20,7 +22,7 @@ import {
 } from "../../src/components/ui";
 import { OrderCard } from "../../src/components/OrderCard";
 import { useToast } from "../../src/components/Toast";
-export default function Chat() {
+function DemoChat() {
   const { id, businessId } = useLocalSearchParams<{
     id: string;
     businessId?: string;
@@ -257,3 +259,5 @@ export default function Chat() {
     </Screen>
   );
 }
+
+export default function Chat(){const {id,businessId}=useLocalSearchParams<{id:string;businessId?:string}>();return aiConfigured ? <RemoteChat key={`${businessId}:${id}`} id={id} businessId={businessId}/> : <DemoChat/>;}

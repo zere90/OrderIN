@@ -1,3 +1,5 @@
+import { aiConfigured } from "../../src/services/supabase";
+import { RemoteChats } from "../../src/components/RemoteChats";
 import { Screen } from "../../src/components/Screen";
 import { useState } from "react";
 import { View, ScrollView } from "react-native";
@@ -14,7 +16,7 @@ import {
   EmptyState,
 } from "../../src/components/ui";
 import { Icon } from "../../src/components/Icon";
-export default function Chats() {
+function DemoChats() {
   const b = useBusiness();
   const t = useTheme();
   const [filter, setFilter] = useState("all");
@@ -156,3 +158,5 @@ export default function Chats() {
     </Screen>
   );
 }
+
+export default function Chats(){return aiConfigured ? <RemoteChats/> : <DemoChats/>;}

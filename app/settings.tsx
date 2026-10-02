@@ -1,3 +1,4 @@
+import { ConnectionsPanel } from "../src/components/ConnectionsPanel";
 import { Screen } from "../src/components/Screen";
 import { useState } from "react";
 import { router } from "expo-router";
@@ -15,6 +16,7 @@ export default function Settings() {
   const [reset, setReset] = useState(false);
   return (
     <Screen back title={ru.settings} subtitle={ru.profile}>
+      <ConnectionsPanel />
       <Card>
         <Label bold>{ru.theme}</Label>
         <SegmentedControl
