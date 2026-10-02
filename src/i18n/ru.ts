@@ -1,0 +1,86 @@
+export const ru = {
+  app: "Qazyna",
+  bakery: "Домашняя пекарня · Астана",
+  inbox: "Сообщения",
+  orders: "Заказы",
+  stock: "Склад",
+  today: "Сегодня",
+  all: "Все",
+  instagram: "Instagram",
+  whatsapp: "WhatsApp",
+  detected: "ИИ: найден заказ",
+  ai: "Помощник Qazyna",
+  question: "ИИ: вопрос",
+  feedback: "ИИ: отзыв",
+  inboxTitle: "Каждый разговор — начало заказа",
+  inboxSubtitle: "Клиенты из Instagram и WhatsApp в одном месте",
+  demo: "ДЕМО · БЕЗ РЕАЛЬНЫХ ПЛАТЕЖЕЙ",
+  draft: "На подтверждении",
+  awaiting_payment: "Ждёт оплаты",
+  paid: "Оплачен",
+  completed: "Завершён",
+  cancelled: "Отменён",
+  confirm: "Подтвердить и отправить Kaspi",
+  simulate: "Симулировать оплату",
+  complete: "Завершить заказ",
+  cancel: "Отменить заказ",
+  date: "Дата (ГГГГ-ММ-ДД)",
+  address: "Адрес доставки",
+  total: "Итого",
+  reply: "Напишите ответ…",
+  send: "Отправить",
+  analyzing: "ИИ разбирает сообщение…",
+  analyze: "Распознать заказ",
+  empty: "Здесь пока спокойно",
+  emptyHint: "Новые заказы и сообщения появятся здесь.",
+  low: "Мало на складе",
+  available: "В наличии",
+  revenue: "Выручка за сегодня",
+  pending: "Ожидают оплаты",
+  needsConfirm: "Нужно подтвердить",
+  summary: "Ваш день под контролем",
+  summaryHint: "Заказы, оплата и остатки — всё перед глазами.",
+  reset: "Сбросить демо-данные",
+  resetTitle: "Начать демо заново?",
+  resetBody: "Изменения, переписка и оплаты будут сброшены.",
+  resetConfirm: "Сбросить",
+  back: "Назад",
+  keep: "Оставить",
+  error: "Не удалось выполнить действие",
+  shortage:
+    "Недостаточно товара на складе. Уменьшите количество или пополните склад.",
+  invalid:
+    "Укажите товар, целое количество больше нуля и корректную дату ГГГГ-ММ-ДД.",
+  paymentSuccess: "Оплата получена · склад обновлён",
+  sent: "Ссылка отправлена клиенту",
+  mockLink: "Демо-ссылка Kaspi. Реальная оплата недоступна:",
+  order: "Заказ",
+  details: "Детали заказа",
+  quantity: "Количество",
+  add: "Добавить товар",
+  remove: "Убрать",
+  confidence: "Уверенность ИИ",
+  copied: "Демо-ссылка скопирована",
+  copy: "Скопировать ссылку",
+  loading: "Загружаем пекарню…",
+  noLow: "Все товары в достатке",
+  stockHint: "Свежая выпечка, точные остатки",
+  paidCount: "Оплачено",
+  completedCount: "Завершено",
+  ordersToday: "Заказы сегодня",
+};
+export const money = (value: number) =>
+  `${Math.round(value)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, " ")} ₸`;
+export const readableDate = (value?: string) =>
+  value
+    ? new Date(
+        value.length === 10 ? `${value}T12:00:00` : value,
+      ).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })
+    : "—";
+export const time = (value: string) =>
+  new Date(value).toLocaleTimeString("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
