@@ -102,16 +102,23 @@ function Wizard({
               />
             </View>
           )}
-          {step > 0 && (
-            <Button
-              small
-              secondary
-              title={ru.back}
+          {step > 0 && step < 7 && (
+            <SpringPress
+              label={ru.back}
+              style={{ alignSelf: "flex-start" }}
               onPress={() => {
+                setError("");
                 if (add && step === 3) router.back();
                 else setStep((s) => s - 1);
               }}
-            />
+            >
+              <Row style={{ gap: 4, paddingVertical: 6 }}>
+                <Icon name="arrow_back" size={18} />
+                <Label bold size={13} color={t.accent}>
+                  {ru.back}
+                </Label>
+              </Row>
+            </SpringPress>
           )}
           {!!error && <Label color={t.danger}>{error}</Label>}
           {step === 0 && (
@@ -142,14 +149,10 @@ function Wizard({
               >
                 {ru.journey}
               </Label>
-              <Row>
-                <View style={{ flex: 1 }}>
-                  <Button title={ru.login} onPress={next} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Button title={ru.register} secondary onPress={next} />
-                </View>
-              </Row>
+              <View style={{ gap: 12, alignSelf: "stretch" }}>
+                <Button title={ru.login} onPress={next} />
+                <Button title={ru.register} secondary onPress={next} />
+              </View>
             </View>
           )}
           {step === 1 && (
@@ -215,6 +218,7 @@ function Wizard({
                         type={s.id}
                         selected={type === s.id}
                         onPress={() => {
+                          if (s.id !== type) setBusinessId(undefined);
                           setType(s.id);
                           setAnswers({});
                         }}
@@ -289,11 +293,14 @@ function Wizard({
               <Button
                 title={ru.continue}
                 onPress={() => {
-                  setBusinessId(
-                    useStore
-                      .getState()
-                      .addBusiness(type, answers, connections, !!add),
-                  );
+                  // Going back and forth must not create duplicate businesses.
+                  if (!businessId) {
+                    setBusinessId(
+                      useStore
+                        .getState()
+                        .addBusiness(type, answers, connections, !!add),
+                    );
+                  }
                   next();
                 }}
               />

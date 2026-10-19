@@ -23,7 +23,9 @@ import {
 } from "../services/inventory";
 import { aiService } from "../services/ai";
 import { paymentService } from "../services/payments";
-import { messagingService } from "../services/messaging";
+// Local (demo) businesses never route through the live Meta integration: their
+// chats only exist on the device, so a server send would always fail.
+import { localMessagingService as messagingService } from "../services/messaging";
 import { v2 as ru } from "../i18n/ru";
 export { totalOf, validateOrder } from "../services/inventory";
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -55,6 +57,8 @@ interface State {
   finish: (bid: string, id: string) => void;
   cancel: (bid: string, id: string) => void;
   reply: (bid: string, id: string, text: string) => Promise<void>;
+  /** Demo only: add a message as if the customer wrote it, so AI parsing can be shown live. */
+  receive: (bid: string, id: string, text: string) => Message | undefined;
   analyze: (bid: string, message: Message) => Promise<void>;
   stock: (bid: string, id: string, delta: number) => void;
   importStock: (
@@ -259,6 +263,20 @@ export const useStore = create<State>()(
           const message = await messagingService.sendMessage(id, text.trim());
           if (revision === generation)
             update(bid, (b) => ({ ...b, messages: [...b.messages, message] }));
+        },
+        receive: (bid, id, text) => {
+          const clean = text.trim();
+          const b = get().businesses[bid];
+          if (!clean || !b?.chats.some((c) => c.id === id)) return undefined;
+          const message: Message = {
+            id: `msg-${uid()}`,
+            chatId: id,
+            role: "customer",
+            text: clean,
+            createdAt: new Date().toISOString(),
+          };
+          update(bid, (b) => ({ ...b, messages: [...b.messages, message] }));
+          return message;
         },
         analyze: async (bid, message) => {
           const revision = generation;

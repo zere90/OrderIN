@@ -24,4 +24,7 @@ export const mockMessagingService: MessagingService = {
   },
 };
 
+/** Messaging for on-device demo chats (seeded or created in the app). */
+export const localMessagingService = mockMessagingService;
+/** Messaging for connected Instagram/WhatsApp conversations when Supabase is configured. */
 export const messagingService: MessagingService = aiConfigured ? remoteMessagingService : mockMessagingService;

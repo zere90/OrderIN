@@ -7,6 +7,11 @@ export const totalOf = (order: Order, products: Product[]) =>
       sum + (products.find((p) => p.id === i.productId)?.price || 0) * i.qty,
     0,
   );
+/**
+ * Seeded daily revenue receipts (demo history for the revenue chart). They are
+ * aggregated totals, not customer orders, so order lists and counters skip them.
+ */
+export const isDailyReceipt = (order: Order) => order.messageId === "receipt";
 export const collectedOf = (order: Order, products: Product[]) =>
   Math.round(totalOf(order, products) * (order.deposit ?? 1));
 export function inventoryNeeds(items: OrderItem[], products: Product[]) {

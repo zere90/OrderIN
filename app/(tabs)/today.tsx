@@ -1,11 +1,13 @@
 import { Screen } from "../../src/components/Screen";
+import { useState } from "react";
+import * as Clipboard from "expo-clipboard";
 import { View, Share } from "react-native";
 import { router } from "expo-router";
 import { useBusiness, useStore } from "../../src/store";
 import { localDate, offsetDate } from "../../src/data/mock";
-import { collectedOf } from "../../src/services/inventory";
+import { collectedOf, isDailyReceipt } from "../../src/services/inventory";
 import { getOpportunities } from "../../src/services/opportunities";
-import { v2 as ru } from "../../src/i18n/ru";
+import { money, v2 as ru } from "../../src/i18n/ru";
 import { useTheme } from "../../src/theme";
 import {
   Label,
@@ -13,6 +15,9 @@ import {
   SpringPress,
   ProductThumb,
   Card,
+  BottomSheet,
+  Button,
+  Chip,
 } from "../../src/components/ui";
 import {
   HeroRevenueCard,
@@ -34,21 +39,22 @@ export default function Today() {
       .reduce((s, o) => s + collectedOf(o, b.products), 0),
   );
   const op = getOpportunities(b)[0];
+  const [sheet, setSheet] = useState(false);
+  const [chatId, setChatId] = useState<string>();
+  const [productId, setProductId] = useState<string>();
+  const sellable = b.products.filter(
+    (p) =>
+      (p.category === "product" || p.category === "service") &&
+      (p.stock > 0 || p.status === "preorder"),
+  );
   const actions = [
     {
       title: ru.newOrder,
       icon: "add_shopping_cart",
       press: () => {
-        const p = b.products.find(
-          (p) => p.category === "product" || p.category === "service",
-        );
-        if (p) {
-          const id = useStore.getState().createOrder(b.id, p.id);
-          router.push({
-            pathname: "/order/[id]",
-            params: { id, businessId: b.id },
-          });
-        }
+        setChatId(b.chats[0]?.id);
+        setProductId(sellable[0]?.id);
+        setSheet(true);
       },
     },
     {
@@ -60,9 +66,13 @@ export default function Today() {
       title: ru.share,
       icon: "share",
       press: () => {
-        void Share.share({
-          message: `Qazyna · ${b.name}\n${ru.journey}`,
-        }).catch(() => toast(ru.error));
+        const message = `Qazyna · ${b.name}\n${ru.journey}`;
+        // Web browsers without the Share API fall back to the clipboard.
+        void Share.share({ message })
+          .catch(() =>
+            Clipboard.setStringAsync(message).then(() => toast(ru.shareCopied))
+          )
+          .catch(() => toast(ru.error));
       },
     },
   ];
@@ -74,7 +84,10 @@ export default function Today() {
           title={ru.orderCount}
           value={
             b.orders.filter(
-              (o) => localDate(new Date(o.createdAt)) === localDate(),
+              (o) =>
+                !isDailyReceipt(o) &&
+                o.status !== "cancelled" &&
+                localDate(new Date(o.createdAt)) === localDate(),
             ).length
           }
           icon="receipt_long"
@@ -108,6 +121,57 @@ export default function Today() {
           </SpringPress>
         ))}
       </Row>
+      <BottomSheet
+        visible={sheet}
+        onClose={() => setSheet(false)}
+        title={ru.newOrderTitle}
+      >
+        <Label bold size={12}>
+          {ru.customer}
+        </Label>
+        <Row style={{ flexWrap: "wrap" }}>
+          {b.chats.map((c) => (
+            <Chip
+              key={c.id}
+              title={b.customers.find((x) => x.id === c.customerId)?.name ||
+                c.id}
+              active={chatId === c.id}
+              onPress={() => setChatId(c.id)}
+            />
+          ))}
+        </Row>
+        <Label bold size={12}>
+          {ru.product}
+        </Label>
+        {sellable.length
+          ? (
+            <Row style={{ flexWrap: "wrap" }}>
+              {sellable.map((p) => (
+                <Chip
+                  key={p.id}
+                  title={`${p.name}${p.size ? ` ${p.size}` : ""} · ${money(p.price)}`}
+                  active={productId === p.id}
+                  onPress={() => setProductId(p.id)}
+                />
+              ))}
+            </Row>
+          )
+          : <Label color={t.warningText}>{ru.noProducts}</Label>}
+        <Button
+          title={ru.createDraft}
+          disabled={!chatId || !productId}
+          onPress={() => {
+            if (!chatId || !productId) return;
+            const id = useStore.getState().createOrder(b.id, productId, chatId);
+            setSheet(false);
+            toast(ru.orderCreated);
+            router.push({
+              pathname: "/order/[id]",
+              params: { id, businessId: b.id },
+            });
+          }}
+        />
+      </BottomSheet>
     </Screen>
   );
 }

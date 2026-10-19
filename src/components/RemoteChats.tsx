@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import { router } from "expo-router";
 import { useBusiness } from "../store";
 import { useRemoteMessaging } from "../hooks/useRemoteMessaging";
@@ -5,12 +6,13 @@ import { Screen } from "./Screen";
 import { Button, Card, Label, Row, SpringPress } from "./ui";
 import { metaRu, time } from "../i18n/ru";
 import { useTheme } from "../theme";
-export function RemoteChats() {
+export function RemoteChats({ switcher }: { switcher?: ReactNode }) {
   const b = useBusiness();
   const t = useTheme();
   const { snapshot, error, loading, refresh } = useRemoteMessaging(b);
   return (
     <Screen title={`${metaRu.chats} · ${b.name}`} subtitle={metaRu.live}>
+      {switcher}
       <Button
         secondary
         title={metaRu.title}

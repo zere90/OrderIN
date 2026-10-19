@@ -63,6 +63,9 @@ function ComputedOpportunityCard({
     }
   }
   const created = b.createdOpportunities.includes(op.id);
+  const openList = op.kind === "shopping" && created
+    ? b.lists.find((l) => l.title === op.title)
+    : undefined;
   return (
     <>
       <AICard>
@@ -89,34 +92,40 @@ function ComputedOpportunityCard({
           ? (
             <Button
               small
-              title={`${op.title} →`}
+              title={ru.openAi}
               onPress={() => router.push("/ai")}
             />
           )
           : (
             <>
-              <Button
-                small
-                title={ru.sendCustomers}
-                disabled={!op.recipientIds.length}
-                onPress={() => {
-                  setText(op.draft);
-                  setSelected(op.recipientIds);
-                  setOpen(true);
-                }}
-              />
+              {op.recipientIds.length > 0 && (
+                <Button
+                  small
+                  icon="campaign"
+                  title={ru.sendCustomers}
+                  onPress={() => {
+                    setText(op.draft);
+                    setSelected(op.recipientIds);
+                    setOpen(true);
+                  }}
+                />
+              )}
               <Row>
                 <View style={{ flex: 1 }}>
                   <Button
                     small
                     secondary
-                    title={created ? ru.createdAlready : ru.create}
-                    disabled={created}
+                    title={created && openList
+                      ? ru.openList
+                      : created
+                      ? ru.createdAlready
+                      : op.kind === "shopping"
+                      ? ru.createList
+                      : ru.create}
+                    disabled={created && !openList}
                     onPress={() => {
-                      const id = useStore.getState().createOpportunity(
-                        b.id,
-                        op,
-                      );
+                      const id = openList?.id ||
+                        useStore.getState().createOpportunity(b.id, op);
                       if (id && op.kind === "shopping") {
                         router.push({
                           pathname: "/shopping/[id]",
@@ -148,7 +157,7 @@ function ComputedOpportunityCard({
         title={ru.previewMessage}
       >
         <Label muted size={12}>
-          {ru.demo}
+          {ru.demoOutreach}
         </Label>
         <AiStatus retry={() => void writeCampaign()} />
         <Button

@@ -94,6 +94,15 @@ export function seedBusiness(
     tumar: "Сәлем! Хочу 1 футболку Tumar M, адрес: Сыганак 18.",
     bake: "Сәлем! Ертең 2 медовик керек. Мекенжай: Мәңгілік Ел 25, Астана.",
   };
+  // Must match the address written in each business's order message.
+  const addresses: Record<BusinessType, string | undefined> = {
+    kofe: "ул. Абая 12, кв. 34",
+    aru: "Туран 12",
+    dala: "Мәңгілік Ел 25",
+    nur: undefined,
+    tumar: "Сыганак 18",
+    bake: "Мәңгілік Ел 25, Астана",
+  };
   const question: Record<BusinessType, string> = {
     kofe: "А можно латте на овсяном молоке?",
     aru: "А есть размер S в розовом?",
@@ -132,7 +141,7 @@ export function seedBusiness(
               type: "order" as const,
               items: mainItems,
               date: tomorrow,
-              address: "ул. Абая 12, кв. 34",
+              address: addresses[type],
               confidence: 0.96,
             }
           : {
@@ -149,7 +158,7 @@ export function seedBusiness(
       messageId: messages[0].id,
       items: mainItems,
       date: tomorrow,
-      address: "ул. Абая 12, кв. 34",
+      address: addresses[type],
       status: "draft",
       createdAt: stamp(4),
     },

@@ -38,7 +38,7 @@ export default function ImportScreen() {
     mode?: string;
     businessId?: string;
   }>();
-  const b = useStore((s) => s.businesses[businessId || s.currentBusinessId]);
+  const b = useStore((s) => (businessId && s.businesses[businessId]) || s.businesses[s.currentBusinessId]);
   const t = useTheme();
   const toast = useToast();
   const resultScope = useRef({

@@ -1,4 +1,4 @@
-import { PropsWithChildren } from "react";
+import { PropsWithChildren, RefObject } from "react";
 import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../theme";
@@ -10,12 +10,14 @@ export function Screen({
   back = false,
   header = true,
   footer,
+  scrollRef,
 }: PropsWithChildren<{
   title?: string;
   subtitle?: string;
   back?: boolean;
   header?: boolean;
   footer?: React.ReactNode;
+  scrollRef?: RefObject<ScrollView | null>;
 }>) {
   const t = useTheme();
   return (
@@ -33,6 +35,7 @@ export function Screen({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
+          ref={scrollRef}
           style={{ flex: 1 }}
           contentContainerStyle={{
             padding: 16,
@@ -45,7 +48,18 @@ export function Screen({
           {children}
         </ScrollView>
         {footer && (
-          <View style={{ padding: 16, backgroundColor: t.bg }}>{footer}</View>
+          <View
+            style={{
+              paddingHorizontal: 16,
+              paddingTop: 12,
+              paddingBottom: 12,
+              backgroundColor: t.bg,
+              borderTopWidth: 1,
+              borderColor: t.border,
+            }}
+          >
+            {footer}
+          </View>
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>

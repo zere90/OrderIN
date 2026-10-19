@@ -1,7 +1,7 @@
 import { aiConfigured } from "../../src/services/supabase";
 import { RemoteChats } from "../../src/components/RemoteChats";
 import { Screen } from "../../src/components/Screen";
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import { View, ScrollView } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -14,9 +14,10 @@ import {
   Chip,
   SpringPress,
   EmptyState,
+  SegmentedControl,
 } from "../../src/components/ui";
 import { Icon } from "../../src/components/Icon";
-function DemoChats() {
+function DemoChats({ switcher }: { switcher?: ReactNode }) {
   const b = useBusiness();
   const t = useTheme();
   const [filter, setFilter] = useState("all");
@@ -41,6 +42,7 @@ function DemoChats() {
     );
   return (
     <Screen title={`${ru.inbox} · ${b.name}`} subtitle="Instagram + WhatsApp">
+      {switcher}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -159,4 +161,22 @@ function DemoChats() {
   );
 }
 
-export default function Chats(){return aiConfigured ? <RemoteChats/> : <DemoChats/>;}
+// Demo chats always stay available so the core journey works without a backend.
+// When Supabase is configured, connected Instagram/WhatsApp chats get their own tab.
+export default function Chats() {
+  const [source, setSource] = useState<"demo" | "live">("demo");
+  if (!aiConfigured) return <DemoChats />;
+  const switcher = (
+    <SegmentedControl
+      value={source}
+      onChange={(v) => setSource(v as "demo" | "live")}
+      items={[
+        { id: "demo", title: ru.demoChats },
+        { id: "live", title: ru.liveChats },
+      ]}
+    />
+  );
+  return source === "live"
+    ? <RemoteChats switcher={switcher} />
+    : <DemoChats switcher={switcher} />;
+}

@@ -30,6 +30,8 @@ export function OrderCard({
   const t = useTheme();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  if (!b) return null;
+  const manual = order.messageId.startsWith("manual-");
   const analysis = b.messages.find((m) => m.id === order.messageId)?.analysis;
   const lowConfidence = !!analysis && analysis.confidence < 0.7;
   const canEdit = editable && order.status === "draft";
@@ -65,9 +67,9 @@ export function OrderCard({
   return (
     <AICard>
       <Row>
-        <AILabel />
+        {!manual && <AILabel />}
         <Label bold size={12} style={{ flex: 1 }}>
-          {ru.detected}
+          {manual ? ru.manualOrder : ru.detected}
         </Label>
         <StatusPill status={order.status} />
       </Row>
@@ -222,7 +224,7 @@ export function OrderCard({
             </Label>
           )}
       </Row>
-      {order.deposit && (
+      {!!order.deposit && (
         <Label size={12} color={t.accent}>
           {ru.deposit}: {money(totalOf(order, b.products) * order.deposit)}
         </Label>
@@ -270,7 +272,7 @@ export function OrderCard({
           title={ru.complete}
           onPress={() => {
             useStore.getState().finish(b.id, order.id);
-            toast(ru.completed);
+            toast(ru.orderCompleted);
           }}
         />
       )}
@@ -279,7 +281,10 @@ export function OrderCard({
           title={ru.cancel}
           secondary
           disabled={busy}
-          onPress={() => useStore.getState().cancel(b.id, order.id)}
+          onPress={() => {
+            useStore.getState().cancel(b.id, order.id);
+            toast(ru.orderCancelled);
+          }}
         />
       )}
     </AICard>

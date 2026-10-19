@@ -26,7 +26,7 @@ import { aiRu, metaRu, money, time } from "../i18n/ru";
 export function RemoteChat(
   { id, businessId }: { id: string; businessId?: string },
 ) {
-  const b = useStore((s) => s.businesses[businessId || s.currentBusinessId]);
+  const b = useStore((s) => (businessId && s.businesses[businessId]) || s.businesses[s.currentBusinessId]);
   const t = useTheme();
   const { snapshot, error, loading, refresh } = useRemoteMessaging(b);
   const conv = snapshot?.conversations.find((c) => c.id === id);

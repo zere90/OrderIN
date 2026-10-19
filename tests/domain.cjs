@@ -290,8 +290,31 @@ async function main() {
   assert.equal(saved.state.onboarded, true);
   await useStore.persist.rehydrate();
   assert.equal(s().mode, "dark");
+  // MVP demo journey: a customer message typed in demo mode becomes an AI order,
+  // goes through confirmation/payment and deducts stock exactly once.
+  s().reset();
+  const demoChat = biz("kofe").chats[1].id;
+  const latteBefore = biz("kofe").products[0].stock;
+  assert.equal(s().receive("kofe", demoChat, "   "), undefined);
+  assert.equal(s().receive("kofe", "missing-chat", "2 латте"), undefined);
+  const incoming = s().receive("kofe", demoChat, "Закажу 3 латте на завтра. Адрес: Кенесары 40");
+  assert.equal(incoming.role, "customer");
+  await s().analyze("kofe", incoming);
+  const live = biz("kofe").orders.find((o) => o.messageId === incoming.id);
+  assert.equal(live.status, "draft");
+  assert.deepEqual(live.items, [{ productId: biz("kofe").products[0].id, qty: 3 }]);
+  assert.equal(live.address, "Кенесары 40");
+  await s().confirm("kofe", live.id);
+  await Promise.all([s().pay("kofe", live.id), s().pay("kofe", live.id)]);
+  assert.equal(biz("kofe").products[0].stock, latteBefore - 3);
+  assert.ok(biz("kofe").messages.some((m) => m.chatId === demoChat && m.role === "bot"));
+  const { isDailyReceipt } = require("../src/services/inventory.ts");
+  const { orderNo } = require("../src/i18n/ru.ts");
+  assert.equal(orderNo("kofe-1041"), "№ 1041");
+  assert.match(orderNo("1760000000000-abc123"), /^№ \d{4}$/);
+  assert.equal(biz("kofe").orders.filter(isDailyReceipt).length, 7);
   console.log(
-    "Passed: six skins and business seeds; computed opportunities; ru/kk/en parser; order lifecycle and stock; duplicate payment/reset/switch races; outreach/create/hide/undo; preorder deposits; shopping checklist; XLSX/CSV mapping and validation; import isolation/stale previews/variants; persistence.",
+    "Passed: six skins and business seeds; computed opportunities; ru/kk/en parser; order lifecycle and stock; duplicate payment/reset/switch races; outreach/create/hide/undo; preorder deposits; shopping checklist; XLSX/CSV mapping and validation; import isolation/stale previews/variants; persistence; demo customer message → AI order → payment.",
   );
 }
 main().catch((e) => {

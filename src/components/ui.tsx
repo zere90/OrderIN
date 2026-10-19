@@ -44,19 +44,30 @@ export function Label({
   style?: StyleProp<import("react-native").TextStyle>;
 }) {
   const t = useTheme();
+  // Unbounded/Manrope lack several Kazakh letters (ә, ң, ғ, қ…). Mixing fonts inside
+  // one word looks broken, so such strings use the platform font instead.
+  const text = typeof children === "string"
+    ? children
+    : Array.isArray(children)
+    ? children.filter((c) => typeof c === "string").join("")
+    : "";
+  const kazakh = (display ? /[әңғүұқөһӘҢҒҮҰҚӨҺ]/ : /[әңғұқӘҢҒҰҚ]/).test(text);
   return (
     <Text
       numberOfLines={lines}
       style={[
         {
           color: color ?? (muted ? t.muted : t.text),
-          fontFamily: display
+          fontFamily: kazakh
+            ? undefined
+            : display
             ? size >= 26
               ? t.fonts.hero
               : t.fonts.display
             : bold
-              ? t.fonts.bold
-              : t.fonts.body,
+            ? t.fonts.bold
+            : t.fonts.body,
+          fontWeight: kazakh ? (display || bold ? "800" : "500") : undefined,
           fontSize: size,
           lineHeight: size * 1.5,
         },
@@ -469,7 +480,13 @@ export function BottomSheet({
         />
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={{ maxHeight: "85%", flexShrink: 1 }}
+          style={{
+            maxHeight: "85%",
+            flexShrink: 1,
+            width: "100%",
+            maxWidth: 720,
+            alignSelf: "center",
+          }}
         >
           <View
             style={{

@@ -15,11 +15,20 @@ export default function Shopping() {
     id: string;
     businessId?: string;
   }>();
-  const b = useStore((s) => s.businesses[businessId || s.currentBusinessId]);
+  const b = useStore((s) => (businessId && s.businesses[businessId]) || s.businesses[s.currentBusinessId]);
   const list = b?.lists.find((l) => l.id === id);
   return (
-    <Screen back title={ru.shopping}>
-      {list?.items.length ? (
+    <Screen
+      back
+      title={ru.shopping}
+      subtitle={list?.items.length
+        ? ru.boughtCount(
+          list.items.filter((i) => i.done).length,
+          list.items.length,
+        )
+        : b?.name}
+    >
+      {b && list?.items.length ? (
         list.items.map((i) => (
           <SpringPress
             key={i.id}

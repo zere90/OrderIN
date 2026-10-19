@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Stack, useGlobalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider, useTheme } from "../src/theme";
 import { useAppFonts } from "../src/theme/fonts";
@@ -27,6 +27,18 @@ function AppStack() {
   return (
     <ToastProvider>
       <StatusBar style={t.dark ? "light" : "dark"} />
+      {/* Mobile-first: on wide web screens keep a phone/tablet-width column. */}
+      <View style={{ flex: 1, backgroundColor: t.dark ? t.bg : t.tint }}>
+      <View
+        style={{
+          flex: 1,
+          width: "100%",
+          maxWidth: Platform.OS === "web" ? 720 : undefined,
+          alignSelf: "center",
+          backgroundColor: t.bg,
+          ...(Platform.OS === "web" ? t.shadow : {}),
+        }}
+      >
       <Stack
         screenOptions={{
           headerShown: false,
@@ -47,6 +59,8 @@ function AppStack() {
         <Stack.Screen name="import" />
         <Stack.Screen name="shopping/[id]" />
       </Stack>
+      </View>
+      </View>
     </ToastProvider>
   );
 }

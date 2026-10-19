@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { ThemeProvider, useTheme } from "../src/theme";
 import { BusinessType } from "../src/types";
 import { seedBusiness, localDate, offsetDate } from "../src/data/mock";
-import { collectedOf } from "../src/services/inventory";
+import { collectedOf, isDailyReceipt } from "../src/services/inventory";
 import { v2 as ru } from "../src/i18n/ru";
 import { Label, Row, Card, AILabel } from "../src/components/ui";
 import { HeroRevenueCard } from "../src/components/HeroRevenueCard";
@@ -43,7 +43,7 @@ function Preview({ type }: { type: BusinessType }) {
       <HeroRevenueCard mini data={data} />
       <Row>
         {[
-          { label: ru.orderCount, n: b.orders.length },
+          { label: ru.orderCount, n: b.orders.filter((o) => !isDailyReceipt(o)).length },
           { label: ru.inbox, n: b.chats.length },
         ].map((s) => (
           <Card

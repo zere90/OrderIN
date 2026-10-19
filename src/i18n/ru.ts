@@ -73,6 +73,14 @@ export const money = (value: number) =>
   `${Math.round(value)
     .toString()
     .replace(/\B(?=(\d{3})+(?!\d))/g, " ")} ₸`;
+/** Short human-friendly order number, e.g. "№ 1041". */
+export const orderNo = (id: string) => {
+  const digits = id.match(/-(\d{3,5})$/)?.[1];
+  if (digits) return `№ ${digits}`;
+  let hash = 0;
+  for (const ch of id) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return `№ ${2000 + (hash % 8000)}`;
+};
 export const readableDate = (value?: string) =>
   value
     ? new Date(
@@ -294,6 +302,34 @@ export const v2 = {
   linkSent: "Kaspi-ссылка отправлена!",
   checking: "Проверяем…",
   orderCreated: "Заказ создан",
+  orderCancelled: "Заказ отменён",
+  orderCompleted: "Заказ выдан клиенту",
+  manualOrder: "Заказ создан вручную",
+  openChat: "Открыть переписку",
+  demoOutreach: "Демо: сообщения появятся в чатах Qazyna и не уходят в Instagram/WhatsApp.",
+  createList: "Создать список",
+  openList: "Открыть список",
+  shareCopied: "Текст скопирован — вставьте его в сообщение",
+  boughtCount: (done: number, total: number) => `Куплено ${done} из ${total}`,
+  noOrders: "Здесь пока нет заказов",
+  noOrdersHint: "Заказы появляются, когда AI находит их в чатах, или через «Новый заказ» на главной.",
+  demoChats: "Демо-чаты",
+  liveChats: "Подключённые каналы",
+  demoBadge: "демо",
+  chatMissing: "Чат не найден",
+  chatMissingHint: "Возможно, демо-данные были сброшены. Вернитесь к списку чатов.",
+  orderMissing: "Заказ не найден",
+  orderMissingHint: "Возможно, демо-данные были сброшены или заказ создан в другом бизнесе.",
+  asCustomerOn: "Сейчас пишете от имени клиента",
+  asCustomerOff: "Написать от имени клиента (демо)",
+  customerPlaceholder: "Сообщение клиента, например: 2 латте на завтра",
+  asCustomerHint: "Демо: сообщение придёт от клиента, и AI сразу попробует найти в нём заказ.",
+  openAi: "Открыть в AI →",
+  newOrderTitle: "Новый заказ",
+  customer: "Клиент",
+  product: "Товар или услуга",
+  createDraft: "Создать черновик",
+  noProducts: "Нет товаров в наличии. Пополните склад.",
   deposit: "К оплате сейчас",
   preOrderStatus: "Предзаказ",
   questionSets: {
@@ -356,7 +392,7 @@ export const v2 = {
 
 export const aiRu = {
  fallbackReplies: ["Здравствуйте! Уточните, пожалуйста, детали.", "Спасибо! Проверим и ответим.", "Какое время вам удобно?"],
- other: 'Другое сообщение', demo: 'демо-режим', thinking: 'AI думает…', error: 'AI недоступен. Показан демо-результат.',
+ other: 'Другое сообщение', demo: 'демо-режим', demoLong: 'демо-режим: локальный разбор без сервера', thinking: 'AI думает…', error: 'AI недоступен. Показан демо-результат.',
  retry: 'Повторить', review: 'Проверьте', replies: 'Предложить ответы', campaign: 'Написать с AI',
  map: 'Определить колонки с AI', cached: 'Результат сохранён: повторно сообщение не отправляется.',
 };

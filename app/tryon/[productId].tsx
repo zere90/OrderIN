@@ -25,7 +25,7 @@ export default function Tryon() {
     businessId?: string;
     chatId?: string;
   }>();
-  const b = useStore((s) => s.businesses[businessId || s.currentBusinessId]);
+  const b = useStore((s) => (businessId && s.businesses[businessId]) || s.businesses[s.currentBusinessId]);
   const product = b?.products.find((p) => p.id === productId);
   const t = useTheme();
   const toast = useToast();
