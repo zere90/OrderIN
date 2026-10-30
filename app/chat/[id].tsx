@@ -241,7 +241,7 @@ function DemoChat({ id, businessId }: { id: string; businessId?: string }) {
           <>
             {message.role === "bot" && (
               <Label size={10} color={t.white} bold>
-                ✦ Qazyna AI
+                ✦ OrderIN AI
               </Label>
             )}
             <Label size={14} color={owner ? t.white : t.text}>

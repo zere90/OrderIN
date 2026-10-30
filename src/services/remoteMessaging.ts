@@ -155,7 +155,7 @@ export class SupabaseMessagingService implements MessagingService {
     template?: TemplateSelection,
   ): Promise<RemoteMessage> {
     await deviceSession();
-    const key = `qazyna-meta-outbox:${conversationId}`;
+    const key = `orderin-meta-outbox:${conversationId}`;
     const encoded = JSON.stringify({ text, template });
     const cached = await AsyncStorage.getItem(key);
     const previous = cached
@@ -198,7 +198,7 @@ export class SupabaseMessagingService implements MessagingService {
     }
   }
   async clearPendingAfterReview(conversationId: string) {
-    await AsyncStorage.removeItem(`qazyna-meta-outbox:${conversationId}`);
+    await AsyncStorage.removeItem(`orderin-meta-outbox:${conversationId}`);
   }
   async templates(conversationId: string) {
     return (await invokeMeta<{ templates: MessageTemplate[] }>("send-message", {

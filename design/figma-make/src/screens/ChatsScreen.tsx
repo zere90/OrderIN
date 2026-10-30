@@ -215,7 +215,7 @@ function ChatDetailScreen({ thread, onBack }: { thread: ChatThread; onBack: () =
               >
                 {msg.from === 'bot' && (
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.8)', marginBottom: 3, fontWeight: 600 }}>
-                    ✦ Qazyna AI
+                    ✦ OrderIN AI
                   </div>
                 )}
                 {msg.text}

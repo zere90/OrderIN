@@ -63,7 +63,7 @@ export class SupabaseAiService implements AiService {
     context?: { businessId: string; businessType: string; messageId: string },
   ): Promise<Analysis> {
     const key = context
-      ? `qazyna-ai-analysis-v1:${context.businessId}:${context.messageId}`
+      ? `orderin-ai-analysis-v1:${context.businessId}:${context.messageId}`
       : undefined;
     if (key && this.pending.has(key)) return this.pending.get(key)!;
     const revision = aiRevision();

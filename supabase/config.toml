@@ -1,4 +1,4 @@
-project_id = "qazyna"
+project_id = "orderin"
 
 [auth]
 enable_anonymous_sign_ins = true

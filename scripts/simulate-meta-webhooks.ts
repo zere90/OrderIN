@@ -15,7 +15,7 @@ const key = await crypto.subtle.importKey(
   false,
   ["sign"],
 );
-const suffix = Deno.env.get("TEST_MESSAGE_ID") || "qazyna-simulation";
+const suffix = Deno.env.get("TEST_MESSAGE_ID") || "orderin-simulation";
 const payloads = [
   whatsappPayload(
     Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") || "test-phone",

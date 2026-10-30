@@ -33,7 +33,7 @@ function Preview({ type }: { type: BusinessType }) {
     >
       <Row>
         <Label display size={9} color={t.accent} style={{ flex: 1 }}>
-          Qazyna
+          OrderIN
         </Label>
         <Icon name={t.skin.icon} size={18} />
       </Row>

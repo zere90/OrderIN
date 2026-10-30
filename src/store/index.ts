@@ -517,7 +517,7 @@ export const useStore = create<State>()(
       };
     },
     {
-      name: "qazyna-demo-v2",
+      name: "orderin-demo-v2",
       version: 2,
       skipHydration: true,
       storage: createJSONStorage(() => AsyncStorage),

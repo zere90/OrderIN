@@ -1,4 +1,4 @@
-# Qazyna · интеграции (AI, Instagram, WhatsApp)
+# OrderIN · интеграции (AI, Instagram, WhatsApp)
 
 Этот документ — подробная настройка необязательного серверного режима. Для запуска MVP он **не нужен**: без `.env` приложение работает в демо-режиме (см. [README](../README.md)).
 
@@ -101,16 +101,16 @@ npx supabase secrets set META_APP_ID=YOUR_META_APP_ID META_APP_SECRET=YOUR_META_
 npx supabase secrets set INSTAGRAM_APP_ID=YOUR_INSTAGRAM_APP_ID INSTAGRAM_APP_SECRET=YOUR_INSTAGRAM_APP_SECRET
 npx supabase secrets set WHATSAPP_TOKEN=YOUR_TEST_OR_SYSTEM_USER_TOKEN WHATSAPP_PHONE_NUMBER_ID=YOUR_PHONE_NUMBER_ID WHATSAPP_WABA_ID=YOUR_WABA_ID
 npx supabase secrets set META_TOKEN_ENCRYPTION_KEY=YOUR_BASE64_32_BYTE_KEY META_CRON_SECRET=YOUR_RANDOM_CRON_SECRET
-npx supabase secrets set WHATSAPP_DEV_SELLER_ID=UUID_FROM_QAZYNA_SETTINGS
+npx supabase secrets set WHATSAPP_DEV_SELLER_ID=UUID_FROM_ORDERIN_SETTINGS
 npx supabase secrets set META_GRAPH_VERSION=v25.0
-npx supabase secrets set META_REDIRECT_URIS='qazyna://oauth/meta,exp://YOUR_LAN_IP:8084/--/oauth/meta,http://localhost:8084/oauth/meta'
+npx supabase secrets set META_REDIRECT_URIS='orderin://oauth/meta,exp://YOUR_LAN_IP:8084/--/oauth/meta,http://localhost:8084/oauth/meta'
 # Для временного тестового WhatsApp token укажите фактический срок:
 npx supabase secrets set WHATSAPP_TOKEN_EXPIRES_AT=2026-10-02T12:00:00Z
 ```
 
 Дата выше — пример: поставьте действительный будущий срок своего token; не копируйте её как гарантированный срок. При постоянном system-user token без срока этот секрет можно не задавать. WHATSAPP_DEV_SELLER_ID обязателен: общий тестовый номер нельзя присвоить произвольной анонимной установке.
 
-META_REDIRECT_URIS — **точный allowlist**, без wildcard. Скопируйте фактический «Адрес возврата» из настроек Qazyna. `Linking.createURL` может дать другой адрес/порт; добавьте его явно. Meta перенаправляет сначала на HTTPS Edge callback, а сервер — на разрешённый адрес приложения. OAuth state случайный, одноразовый, привязан к продавцу и бизнесу, живёт 10 минут; токен в deep link не передаётся.
+META_REDIRECT_URIS — **точный allowlist**, без wildcard. Скопируйте фактический «Адрес возврата» из настроек OrderIN. `Linking.createURL` может дать другой адрес/порт; добавьте его явно. Meta перенаправляет сначала на HTTPS Edge callback, а сервер — на разрешённый адрес приложения. OAuth state случайный, одноразовый, привязан к продавцу и бизнесу, живёт 10 минут; токен в deep link не передаётся.
 
 ```sh
 npx supabase functions deploy ai
@@ -137,9 +137,9 @@ npx supabase functions deploy meta-maintenance
 
 В Meta App Roles добавьте владельца professional account как Instagram tester (или администратора/разработчика); в Instagram примите приглашение в настройках разрешённых приложений/тестовых приглашений. В Development mode проверяйте через разрешённые аккаунты и активы. Для сторонних продавцов нужны Live mode и Advanced Access/App Review для запрошенных разрешений; настройте privacy policy/data-deletion callback в Meta до публикации. Данная ветка не проходит App Review автоматически.
 
-В Qazyna выберите бизнес → Настройки → «Подключить Instagram». Откроется `openAuthSessionAsync`, сервер обменяет code на short-lived, затем long-lived token, получит профиль и вызовет `/{instagram-user-id}/subscribed_apps`. В приложении появится название подключённого аккаунта. Один Instagram account принадлежит одному бизнесу; уже подключённую запись нельзя незаметно переназначить другому бизнесу/аккаунту.
+В OrderIN выберите бизнес → Настройки → «Подключить Instagram». Откроется `openAuthSessionAsync`, сервер обменяет code на short-lived, затем long-lived token, получит профиль и вызовет `/{instagram-user-id}/subscribed_apps`. В приложении появится название подключённого аккаунта. Один Instagram account принадлежит одному бизнесу; уже подключённую запись нельзя незаметно переназначить другому бизнесу/аккаунту.
 
-Expo Go остаётся поддерживаемым рантаймом, но **не регистрирует custom scheme `qazyna://`**. В Expo Go используется текущий `exp://…/--/oauth/meta`; возврат браузера зависит от платформы. Если браузер не закрылся, вернитесь в приложение и нажмите «Обновить» — канал уже сохранён сервером. Надёжный custom-scheme OAuth проверяется в установленной сборке. Native Meta SDK, prebuild и dev-client-only библиотеки не добавлены. См. [Expo OAuth guidance](https://docs.expo.dev/guides/authentication/), [Instagram Login](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login), [официальная коллекция Meta Messaging](https://www.postman.com/meta/instagram/request/scob1z4/text-message).
+Expo Go остаётся поддерживаемым рантаймом, но **не регистрирует custom scheme `orderin://`**. В Expo Go используется текущий `exp://…/--/oauth/meta`; возврат браузера зависит от платформы. Если браузер не закрылся, вернитесь в приложение и нажмите «Обновить» — канал уже сохранён сервером. Надёжный custom-scheme OAuth проверяется в установленной сборке. Native Meta SDK, prebuild и dev-client-only библиотеки не добавлены. См. [Expo OAuth guidance](https://docs.expo.dev/guides/authentication/), [Instagram Login](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login), [официальная коллекция Meta Messaging](https://www.postman.com/meta/instagram/request/scob1z4/text-message).
 
 ### 3. WhatsApp Cloud API: тестовый номер
 
@@ -147,7 +147,7 @@ Expo Go остаётся поддерживаемым рантаймом, но *
 
 В API Setup добавьте и подтвердите личные номера тестовых получателей (получатель вводит код у Meta). Тестовый номер отправляет только разрешённым получателям. В WhatsApp → Configuration/Webhooks вставьте URL и Verify token выше, подпишитесь на поле **`messages`** объекта **`whatsapp_business_account`** — оно включает входящие сообщения и sent/delivered/read/failed statuses.
 
-В Qazyna под продавцом WHATSAPP_DEV_SELLER_ID нажмите «Подключить тестовый номер». Сервер прочитает token из secrets, проверит WABA, подпишет WABA через `/{waba-id}/subscribed_apps` и сохранит зашифрованный канал. Временные тестовые токены часто требуют ручного обновления; замените secret и повторите подключение. Автоматически продлеваются только long-lived Instagram tokens.
+В OrderIN под продавцом WHATSAPP_DEV_SELLER_ID нажмите «Подключить тестовый номер». Сервер прочитает token из secrets, проверит WABA, подпишет WABA через `/{waba-id}/subscribed_apps` и сохранит зашифрованный канал. Временные тестовые токены часто требуют ручного обновления; замените secret и повторите подключение. Автоматически продлеваются только long-lived Instagram tokens.
 
 После входящего сообщения клиента открывается 24-часовое окно. Внутри отправляется обычный текст; снаружи Instagram блокирует отправку, а WhatsApp показывает picker утверждённых шаблонов. Picker загружает первые 100 templates WABA и поддерживает APPROVED templates с текстовым BODY, последовательными `{{1}}…{{n}}` параметрами и необязательными статическими текстовыми HEADER/FOOTER (например `hello_world`). Динамические header/media/buttons и именованные параметры не поддерживаются этим picker. Создайте подходящий шаблон в WhatsApp Manager → Message templates; его имя, язык и число параметров повторно проверяются сервером перед отправкой. Учитывайте правила согласия получателей и тарификацию шаблонов Meta.
 

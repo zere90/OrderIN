@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 select extensions.no_plan();
-insert into auth.users(id,email) values('11111111-1111-4111-8111-111111111111','qazyna-test-a@example.invalid'),('22222222-2222-4222-8222-222222222222','qazyna-test-b@example.invalid');
+insert into auth.users(id,email) values('11111111-1111-4111-8111-111111111111','orderin-test-a@example.invalid'),('22222222-2222-4222-8222-222222222222','orderin-test-b@example.invalid');
 insert into public.businesses(id,seller_id,local_key,name,type) values
  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111','a','A','kofe'),
  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','22222222-2222-4222-8222-222222222222','b','B','aru');

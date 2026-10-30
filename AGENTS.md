@@ -1,4 +1,4 @@
-# Qazyna project rules
+# OrderIN project rules
 
 - Stay on Expo SDK 57 and preserve Expo Go compatibility. Install dependencies only with `npx expo install <package>`. SDK 57 patch alignment is allowed when Expo's compatibility checker requires it; no SDK-major upgrades, prebuild, custom native modules or dev-client-only libraries.
 - Allowed additions: @supabase/supabase-js, expo-image-manipulator, expo-font, @expo-google-fonts/unbounded, @expo-google-fonts/manrope, expo-linear-gradient, react-native-svg, expo-blur, expo-haptics, expo-image-picker, expo-document-picker, xlsx, @expo/vector-icons. Existing router, Zustand, AsyncStorage, clipboard, safe-area and starter dependencies remain. Do not add Vite/Tailwind/react-dom for design reference code.
@@ -13,7 +13,7 @@
 - Compute opportunities and their numbers from business data. Persist hides/undo, created products, shopping checklists and all local outreach.
 - Order lifecycle: draft → awaiting_payment → paid → completed; cancellation before payment. Validate finite nonnegative totals, positive integer quantities, dates, variants, and stock. Deduct stock and component requirements once. Preorders collect deposits without reducing unavailable stock.
 - Preserve inventory-history sources. Excel values replace absolute stock counts; photo/manual imports add quantities. Match variants using name + size + color; reject invalid/duplicate rows and stale previews before atomic application. Keep the sample workbook and bundled copy byte-identical.
-- Persist with Zustand/AsyncStorage; do not read browser/native storage during SSR. Preserve `qazyna-demo-v1` when updating v2. Reset must invalidate pending async writes.
+- Persist with Zustand/AsyncStorage; do not read browser/native storage during SSR. Local demo state is stored under `orderin-demo-v2`. Reset must invalidate pending async writes.
 - Run `npm test`, `npx tsc --noEmit`, `npx expo install --check`, `npx expo-doctor`; bundle affected native/web platforms and inspect relevant browser flows. Report physical-device-only checks honestly.
 - Keep README and PR validation/design-difference notes current. Do not commit secrets, node_modules, build exports, native generated directories or local user state.
 

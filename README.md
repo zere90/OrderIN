@@ -1,8 +1,12 @@
-# Qazyna — MVP
+# OrderIN — MVP
 
 **AI-помощник для микро-продавцов Казахстана: заказы из чатов → Kaspi-оплата → умный склад.**
 
-Qazyna is a mobile-first app (Expo / React Native, also runs in the browser) for small sellers who take orders in Instagram and WhatsApp DMs — coffee shops, home bakeries, clothing brands, beauty studios, small groceries. The interface is in Russian; customer messages can be in Russian, Kazakh or English.
+### ▶ [Open the live MVP — zere90.github.io/OrderIN](https://zere90.github.io/OrderIN/)
+
+Works in any browser, no installation. Demo login: any 10-digit phone, code **1234**. Best viewed at phone size (on a laptop: DevTools → device toolbar).
+
+OrderIN is a mobile-first app (Expo / React Native, also runs in the browser) for small sellers who take orders in Instagram and WhatsApp DMs — coffee shops, home bakeries, clothing brands, beauty studios, small groceries. The interface is in Russian; customer messages can be in Russian, Kazakh or English.
 
 ## The problem and the MVP hypothesis
 
@@ -72,6 +76,14 @@ For a presentation in a browser, open the app in phone size (DevTools → device
 
 **Before a live demo:** Профиль и настройки → «Сбросить демо-данные». Demo data is generated relative to the current date; resetting refreshes today's revenue, tomorrow's orders and the chat history. Onboarding is not repeated after reset.
 
+## Publishing on GitHub Pages
+
+The live link above is built automatically by [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml): on every push to `main` GitHub installs dependencies, runs the tests and type check, exports the web app for the `/OrderIN/` path and publishes it. The published build runs in demo mode (no `.env`, no secrets).
+
+One-time setup in the repository: **Settings → Pages → Build and deployment → Source: “GitHub Actions”**. Progress is visible in the **Actions** tab; the first deployment takes about 3–5 minutes.
+
+To reproduce the Pages build locally: `EXPO_BASE_URL=/OrderIN EXPO_WEB_OUTPUT=single npx expo export --platform web` (configuration in `app.config.js`).
+
 ## Environment configuration
 
 No configuration is required — **without `.env` the app runs fully in demo mode**.
@@ -119,6 +131,7 @@ src/
   theme/                  six skins, tokens, fonts, light/dark theme
 supabase/                 optional backend: migrations and Edge Functions
 scripts/serve-web.cjs     zero-dependency server for the web build
+.github/workflows/        GitHub Pages deployment
 tests/                    regression suites
 docs/                     MVP scope, integrations, screenshots
 design/figma-make/        read-only design reference (not built)

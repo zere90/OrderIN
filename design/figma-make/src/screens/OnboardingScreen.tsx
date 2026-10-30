@@ -99,7 +99,7 @@ export default function OnboardingScreen() {
               <span className="icon icon-xl" style={{ color: '#fff' }}>storefront</span>
             </div>
             <div className="font-display" style={{ fontSize: 26, fontWeight: 800, color: skin.accent, lineHeight: 1.2, marginBottom: 12 }}>
-              Qazyna
+              OrderIN
             </div>
             <div style={{ fontSize: 15, color: '#555', lineHeight: 1.6, marginBottom: 8 }}>
               AI-помощник для малого бизнеса в Казахстане
@@ -287,7 +287,7 @@ export default function OnboardingScreen() {
               Какой у вас бизнес?
             </div>
             <div style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>
-              Настроим Qazyna под ваши задачи
+              Настроим OrderIN под ваши задачи
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
               {skins.map((s) => {
@@ -453,7 +453,7 @@ export default function OnboardingScreen() {
               Подключите каналы
             </div>
             <div style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>
-              Qazyna будет принимать заказы из чатов автоматически
+              OrderIN будет принимать заказы из чатов автоматически
             </div>
             {[
               { label: 'Instagram', icon: 'photo_camera', color: '#E1306C', sub: 'Direct-сообщения' },
@@ -532,7 +532,7 @@ export default function OnboardingScreen() {
               Загрузите {skin.stockLabel.toLowerCase()}
             </div>
             <div style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>
-              Qazyna добавит их на склад автоматически
+              OrderIN добавит их на склад автоматически
             </div>
             {[
               { label: 'Сфотографировать накладную', icon: 'photo_camera', sub: 'AI распознает и добавит товары' },
@@ -613,7 +613,7 @@ export default function OnboardingScreen() {
               <span className="icon icon-xl" style={{ color: '#fff' }}>check_circle</span>
             </div>
             <div className="font-display" style={{ fontSize: 22, fontWeight: 800, color: skin.accent, marginBottom: 12 }}>
-              Qazyna готова!
+              OrderIN готов!
             </div>
             <div style={{ fontSize: 14, color: '#555', lineHeight: 1.6, marginBottom: 8 }}>
               Настроена под <strong>{skin.name}</strong>

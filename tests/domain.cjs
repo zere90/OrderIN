@@ -285,7 +285,7 @@ async function main() {
   s().setMode("dark");
   s().completeOnboarding();
   await new Promise((r) => setTimeout(r, 0));
-  const saved = JSON.parse(storage.get("qazyna-demo-v2"));
+  const saved = JSON.parse(storage.get("orderin-demo-v2"));
   assert.equal(saved.state.mode, "dark");
   assert.equal(saved.state.onboarded, true);
   await useStore.persist.rehydrate();

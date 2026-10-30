@@ -43,7 +43,7 @@ function MiniHomeCard({ skin }: { skin: typeof skins[0] }) {
       >
         <div>
           <div style={{ fontSize: 9, fontWeight: 700, color: skin.accent, fontFamily: 'Unbounded, sans-serif' }}>
-            Qazyna
+            OrderIN
           </div>
           <div style={{ fontSize: 8, color: '#888' }}>{skin.name}</div>
         </div>
@@ -232,7 +232,7 @@ export default function SkinsOverview() {
       <div style={{ padding: '20px 20px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontFamily: 'Unbounded, sans-serif', fontSize: 16, fontWeight: 800, color: '#1A1A1A' }}>
-            6 скинов Qazyna
+            6 скинов OrderIN
           </div>
           <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Один дизайн — шесть бизнесов</div>
         </div>

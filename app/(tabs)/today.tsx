@@ -66,7 +66,7 @@ export default function Today() {
       title: ru.share,
       icon: "share",
       press: () => {
-        const message = `Qazyna · ${b.name}\n${ru.journey}`;
+        const message = `OrderIN · ${b.name}\n${ru.journey}`;
         // Web browsers without the Share API fall back to the clipboard.
         void Share.share({ message })
           .catch(() =>

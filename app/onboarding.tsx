@@ -137,7 +137,7 @@ function Wizard({
                 <Icon name="storefront" color={t.white} size={36} />
               </LinearGradient>
               <Label display size={26} color={t.accent}>
-                Qazyna
+                OrderIN
               </Label>
               <Label size={15} style={{ textAlign: "center" }}>
                 {ru.welcome}

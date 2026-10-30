@@ -57,5 +57,5 @@ http
     }
   })
   .listen(port, () => {
-    console.log(`Qazyna web build: http://localhost:${port}`);
+    console.log(`OrderIN web build: http://localhost:${port}`);
   });

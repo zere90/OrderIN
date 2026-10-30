@@ -1,4 +1,4 @@
-# Qazyna — MVP scope
+# OrderIN — MVP scope
 
 This document maps the product to the MVP steps from the course (problem → audience → user path → prioritised functions → MVP scope → testing).
 
@@ -6,7 +6,7 @@ This document maps the product to the MVP steps from the course (problem → aud
 
 Micro-sellers in Kazakhstan sell through Instagram and WhatsApp DMs. Every order is read and retyped by hand, payment links are sent manually, and stock is updated (or forgotten) separately. The result: lost or wrong orders, overselling items that are out of stock, and no time to bring regular customers back.
 
-**Value in one sentence:** *Qazyna turns customer chats into confirmed, paid orders and keeps stock up to date automatically.*
+**Value in one sentence:** *OrderIN turns customer chats into confirmed, paid orders and keeps stock up to date automatically.*
 
 ## 2. Target audience
 

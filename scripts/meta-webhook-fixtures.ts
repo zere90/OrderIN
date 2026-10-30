@@ -1,6 +1,6 @@
 export function whatsappPayload(
   account = "test-phone",
-  id = "wamid.qazyna-test",
+  id = "wamid.orderin-test",
   now = Date.now(),
 ) {
   return {
@@ -33,7 +33,7 @@ export function whatsappPayload(
 }
 export function instagramPayload(
   account = "test-instagram",
-  id = "mid.qazyna-test",
+  id = "mid.orderin-test",
   now = Date.now(),
 ) {
   return {
